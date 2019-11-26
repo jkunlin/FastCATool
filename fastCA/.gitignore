@@ -28,6 +28,3 @@
 *.out
 *.app
 MCA
-
-#test file
-tcas.*

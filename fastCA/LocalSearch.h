@@ -3,11 +3,9 @@
 
 #include "ConstraintFile.H"
 #include "SpecificationFile.h"
-#include "TestSetFile.H"
 
 void localSearch(const SpecificationFile &specificationFile,
                  const ConstraintFile &constrFile,
-                 const unsigned long long maxTime, int seed,
-		 TestSetFile &testSetFile);
+                 const unsigned long long maxTime, int seed);
 
 #endif /* end of include guard: LOCALSEARCH_H */
