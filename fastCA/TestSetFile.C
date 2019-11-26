@@ -102,8 +102,8 @@ bool TestSetFile::IsThisRow(unsigned inSetIndex,
   return true;
 }
 
-void TestSetFile::UpdateTestSetbyACTS(vector<vector<unsigned>> &array) {
-  vector<vector<int>> validTestSet; // fastCA format
+void TestSetFile::UpdateTestSetbyACTS(vector<vector<unsigned> > &array) {
+  vector<vector<int> > validTestSet; // fastCA format
   unsigned scanArray = 0;
 
   for (unsigned i = 0; i < testSet.size() && scanArray < testSet.size(); i++) {

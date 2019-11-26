@@ -10,8 +10,8 @@
 
 // jkunlin, using vector instead of Array
 class TestSetFile {
-  std::vector<std::vector<int>> testSet;     // fastCA format
-  std::vector<std::vector<int>> actsTestSet; // acts format
+  std::vector<std::vector<int> > testSet;     // fastCA format
+  std::vector<std::vector<int> > actsTestSet; // acts format
   int var_count;
 
 public:
@@ -25,7 +25,7 @@ public:
   bool isExistedOption(const unsigned lineIndex, const unsigned option) const;
   int getSetSize() { return testSet.size(); };
   bool IsThisRow(unsigned inSetIndex, std::vector<unsigned> &rowInResult);
-  void UpdateTestSetbyACTS(std::vector<std::vector<unsigned>> &array);
+  void UpdateTestSetbyACTS(std::vector<std::vector<unsigned> > &array);
 
   std::string printInActsFormat() const;
 };
