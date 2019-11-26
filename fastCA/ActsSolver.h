@@ -7,17 +7,20 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include "TestSetFile.H"
 
 class ActsSolver {
 public:
   void solve(const SpecificationFile &specificationFile,
              const ConstraintFile &constraintFile,
-             const std::string &res_file_name);
+             const std::string &res_file_name,
+	     const TestSetFile &testSetFile);
 
 private:
   void generate_input_file(const SpecificationFile &specificationFile,
                            const ConstraintFile &constraintFile,
-                           const std::string &acts_inputfile_name);
+                           const std::string &acts_inputfile_name,
+			   const TestSetFile &testSetFile);
 };
 
 #endif /* end of include guard: ACTSSOLVER_H_CQDYTNB9 */

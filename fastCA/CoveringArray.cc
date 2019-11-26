@@ -2,10 +2,11 @@
 
 CoveringArray::CoveringArray(const SpecificationFile &specificationFile,
                              const ConstraintFile &constraintFile,
-                             unsigned long long maxT, int seed)
+                             TestSetFile &testSet, unsigned long long maxT,
+                             int seed)
     : validater(specificationFile), satSolver(constraintFile.isEmpty()),
-      specificationFile(specificationFile), coverage(specificationFile),
-      entryTabu(4), maxTime(maxT) {
+      specificationFile(specificationFile), testSet(testSet),
+      coverage(specificationFile), entryTabu(4), maxTime(maxT) {
 
   clock_start = clock();
   const Options &options = specificationFile.getOptions();
@@ -533,8 +534,10 @@ void CoveringArray::removeOneRowRandom() {
   array.pop_back();
 }
 
-void CoveringArray::optimize() {
+void CoveringArray::updateTestSet() { testSet.UpdateTestSetbyACTS(array); }
 
+void CoveringArray::optimize() {
+  updateTestSet();
   while (true) {
     if ((double)(clock() - clock_start) / CLOCKS_PER_SEC > maxTime) {
       break;
@@ -576,14 +579,14 @@ void CoveringArray::optimize() {
 
   //#ifndef NDEBUG
   std::cerr << "********Debuging CoveringArray::optimize*********" << std::endl;
-  //	std::cerr << "printing bestArray..." << std::endl;
-  //	for (unsigned i = 0; i < bestArray.size(); ++i) {
-  //		std::cerr << i << "th  ";
-  //		for (auto x : bestArray[i]) {
-  //			std::cerr << ' ' << x;
-  //		}
-  //		std::cerr << std::endl;
-  //	}
+  std::cerr << "printing bestArray..." << std::endl;
+  for (unsigned i = 0; i < bestArray.size(); ++i) {
+    std::cerr << i << "th  ";
+    for (auto x : bestArray[i]) {
+      std::cerr << ' ' << x;
+    }
+    std::cerr << std::endl;
+  }
   std::cerr << "total size : " << bestArray.size() << std::endl;
   std::cerr << "********End of Debuing CoveringArray::optimize********"
             << std::endl;
@@ -673,6 +676,9 @@ void CoveringArray::tabugw() {
       unsigned diffOption = specificationFile.getOptions().option(diffVar);
       // Tabu
       if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
+        continue;
+      }
+      if (testSet.isExistedOption(lineIndex, diffOption)) {
         continue;
       }
       // my check

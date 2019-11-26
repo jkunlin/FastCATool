@@ -5,6 +5,7 @@
 #include "ConstraintFile.H"
 #include "LocalSearch.h"
 #include "SpecificationFile.h"
+#include "TestSetFile.H"
 
 using namespace std;
 
@@ -54,6 +55,8 @@ int main(int argc, char const *argv[]) {
 
   SpecificationFile specificationFile(modelFile);
   ConstraintFile constraintFile(constrFile);
-  localSearch(specificationFile, constrFile, maxTime, seed);
+  TestSetFile testSetFile(testFile);
+  testSetFile.convert2acts(specificationFile);
+  localSearch(specificationFile, constrFile, maxTime, seed, testSetFile);
   return 0;
 }
