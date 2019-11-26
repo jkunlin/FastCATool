@@ -4,7 +4,7 @@
 #src = ${shell ls *.cc}
 #objs = ${patsubst %.cc, %.o, $(src)}
 
-objs = Options.o SpecificationFile.o PascalTriangle.o Combinadic.o  ConstraintFile.o\
+objs = Options.o SpecificationFile.o PascalTriangle.o Combinadic.o  ConstraintFile.o TestSetFile.o\
 	   LocalSearch.o Coverage.o CoveringArray.o TupleSet.o OptionTupleSet.o LineVarTupleSet.o mersenne.o SAT.o Sovler.o ActsSolver.o main.o
 CC = g++
 CFLAGS = --std=c++0x -DNDEBUG -O2

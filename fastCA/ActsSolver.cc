@@ -3,7 +3,8 @@
 
 void ActsSolver::solve(const SpecificationFile &specificationFile,
                        const ConstraintFile &constraintFile,
-                       const std::string &res_file_name) {
+                       const std::string &res_file_name,
+		       const TestSetFile &testSetFile) {
   char filename[L_tmpnam];
   if (!tmpnam(filename)) {
     std::cerr << "tmp file name error" << std::endl;
@@ -11,11 +12,18 @@ void ActsSolver::solve(const SpecificationFile &specificationFile,
   std::string acts_inputfile_name = filename;
   acts_inputfile_name += std::to_string(getpid());
   acts_inputfile_name += ".txt";
-  generate_input_file(specificationFile, constraintFile, acts_inputfile_name);
+  generate_input_file(specificationFile, constraintFile, acts_inputfile_name, testSetFile);
   const unsigned strenth = specificationFile.getStrenth();
   std::string cmd =
       "java -Ddoi=" + std::to_string(strenth) + " -jar acts_cmd_2.92.jar ";
+  if (!testSetFile.isEmpty()) {
+	  cmd =
+      "java -Ddoi=" + std::to_string(strenth) + " -Dmode=extend -jar acts_cmd_2.92.jar ";
+
+  }
   cmd += std::string("cmd ") + acts_inputfile_name + " " + res_file_name;
+  std::cout<<"input acts filename="<<acts_inputfile_name<<std::endl;
+  std::cout<<"cmd=" << cmd<< std::endl;
   std::string rm_cmd = std::string("rm ") + acts_inputfile_name;
   if (system(cmd.c_str()) != 0 || system(rm_cmd.c_str()) != 0) {
     std::cout << "system() wrong" << std::endl;
@@ -25,7 +33,8 @@ void ActsSolver::solve(const SpecificationFile &specificationFile,
 
 void ActsSolver::generate_input_file(const SpecificationFile &specificationFile,
                                      const ConstraintFile &constraintFile,
-                                     const std::string &acts_inputfile_name) {
+                                     const std::string &acts_inputfile_name,
+				     const TestSetFile &testSetFile) {
   std::ofstream acts_infile(acts_inputfile_name);
   if (!acts_infile.is_open()) {
     std::cerr << "open failed" << std::endl;
@@ -62,5 +71,13 @@ void ActsSolver::generate_input_file(const SpecificationFile &specificationFile,
     }
     acts_infile << ' ' << std::endl;
   }
+
+
+  if (!testSetFile.isEmpty()) {
+     acts_infile << std::endl << "[Test Set]" << std::endl;
+     acts_infile << testSetFile.printInActsFormat();
+
+  }
+
   acts_infile.close();
 }

@@ -15,11 +15,13 @@
 #include "TupleSet.h"
 #include "Valid_check.h"
 #include "mersenne.h"
+#include "TestSetFile.H"
 
 class CoveringArray {
 public:
-  CoveringArray(const SpecificationFile &specificationFile,
-                const ConstraintFile &constraintFile, unsigned long long maxT,
+  CoveringArray(const SpecificationFile &specificationFile, 
+                const ConstraintFile &constraintFile, TestSetFile &testSet,
+                unsigned long long maxT,
                 int seed);
   void greedyConstraintInitialize();
   void greedyConstraintInitialize2();
@@ -32,6 +34,7 @@ private:
   std::vector<bool> option_constrained_indicator;
   Mersenne mersenne;
   const SpecificationFile &specificationFile;
+  TestSetFile & testSet;
   std::vector<std::vector<unsigned>> bestArray; // = array;
   std::vector<std::vector<unsigned>> array;
   Coverage coverage;
@@ -46,6 +49,7 @@ private:
 
   void cover(const unsigned encode, const unsigned oldLineIndex);
   void uncover(const unsigned encode, const unsigned oldLineIndex);
+  void updateTestSet();
   // produce one row at least cover one uncovered tuple.
   // Producing the row without update coverage
   void produceSatRow(std::vector<unsigned> &newLine, const unsigned encode);
