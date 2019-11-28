@@ -7,7 +7,7 @@
 objs = Options.o SpecificationFile.o PascalTriangle.o Combinadic.o  ConstraintFile.o TestSetFile.o\
 	   LocalSearch.o Coverage.o CoveringArray.o TupleSet.o OptionTupleSet.o LineVarTupleSet.o mersenne.o SAT.o Sovler.o ActsSolver.o main.o
 CC = g++
-CFLAGS = --std=c++0x -DNDEBUG -O2
+CFLAGS = --std=c++0x -DNDEBUG -O2 -pthread
 
 all : FastCA
 
@@ -60,6 +60,9 @@ mersenne.o : mersenne.cc
 	$(CC) $(CFLAGS) -c -o $@ $^
 
 ActsSolver.o : ActsSolver.cc
+	$(CC) $(CFLAGS) -c -o $@ $^
+
+TestSetFile.o : TestSetFile.C
 	$(CC) $(CFLAGS) -c -o $@ $^
 
 #%.o : %.cc
