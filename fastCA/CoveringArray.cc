@@ -1,14 +1,13 @@
 #include "CoveringArray.h"
-
 CoveringArray::CoveringArray(const SpecificationFile &specificationFile,
                              const ConstraintFile &constraintFile,
                              TestSetFile &testSet, unsigned long long maxT,
-                             int seed)
+                             int seed, int threadsNum)
     : validater(specificationFile), satSolver(constraintFile.isEmpty()),
       specificationFile(specificationFile), testSet(testSet),
       coverage(specificationFile), entryTabu(4), maxTime(maxT) {
 
-  clock_start = clock();
+  gettimeofday(&start_time, NULL);
   const Options &options = specificationFile.getOptions();
   // add constraint into satSolver
   const std::vector<InputClause> &clauses = constraintFile.getClauses();
@@ -60,6 +59,46 @@ CoveringArray::CoveringArray(const SpecificationFile &specificationFile,
 
   mersenne.seed(seed);
   step = 0;
+
+  this->threadsNum = threadsNum;
+  // parallel
+  if (this->threadsNum > 1) {
+    tasks.resize(threadsNum);
+    programStop.store(false);
+
+    for (int t = 0; t < threadsNum; ++t) {
+      taskReadyPtr.push_back(new std::atomic<bool>(false));
+    }
+
+    for (int t = 1; t < threadsNum; ++t) {
+      threadsPtr.push_back(new std::thread([t, this] {
+        while (true) {
+          while (true) {
+            if (this->taskReadyPtr[t]->load() || this->programStop.load())
+              break;
+          }
+          if (this->taskReadyPtr[t]->load())
+            tasks[t]();
+          if (this->programStop.load()) {
+            break;
+          }
+          this->taskReadyPtr[t]->store(false);
+        }
+      }));
+    }
+  }
+}
+
+CoveringArray::~CoveringArray() {
+  // parallel
+  if (this->threadsNum > 1) {
+    this->programStop.store(true);
+
+    for (auto threadptr : threadsPtr) {
+      threadptr->join();
+      delete threadptr;
+    }
+  }
 }
 
 void CoveringArray::actsInitialize(const std::string file_name) {
@@ -100,7 +139,8 @@ void CoveringArray::actsInitialize(const std::string file_name) {
   }
   res_file.close();
 
-  clock_t start = clock();
+  struct timeval start;
+  gettimeofday(&start, NULL);
   std::vector<size_t> coverByLineIndex(coverage.tupleSize());
   std::vector<unsigned> tuple(strenth);
   for (unsigned lineIndex = 0; lineIndex < array.size(); ++lineIndex) {
@@ -117,8 +157,13 @@ void CoveringArray::actsInitialize(const std::string file_name) {
     }
   }
   coverage.set_zero_invalid();
-  std::cout << "actsInitialize: " << double(clock() - start) / CLOCKS_PER_SEC
-            << std::endl;
+
+  struct timeval end;
+  gettimeofday(&end, NULL);
+  double start_sec = start.tv_sec + start.tv_usec / 1000000.0;
+  double end_sec = end.tv_sec + end.tv_usec / 1000000.0;
+  std::cout << "actsInitialize: " << end_sec - start_sec << std::endl;
+
   entryTabu.initialize(Entry(array.size(), array.size()));
   validater.initialize(array);
   tmpPrint();
@@ -414,7 +459,8 @@ void CoveringArray::removeOneRow() {
   unsigned minUncoverCount = std::numeric_limits<unsigned>::max();
   std::vector<unsigned> bestRowIndex;
   std::vector<unsigned> tmpTuple(strength);
-  clock_t start = clock();
+  struct timeval start;
+  gettimeofday(&start, NULL);
   for (unsigned i = 0; i < array.size(); ++i) {
     unsigned uncoverCount = 0;
     const std::vector<unsigned> &line = array[i];
@@ -436,8 +482,12 @@ void CoveringArray::removeOneRow() {
       bestRowIndex.push_back(i);
     }
   }
-  std::cout << "select time: " << double(clock() - start) / CLOCKS_PER_SEC
-            << std::endl;
+
+  struct timeval end;
+  gettimeofday(&end, NULL);
+  double start_sec = start.tv_sec + start.tv_usec / 1000000.0;
+  double end_sec = end.tv_sec + end.tv_usec / 1000000.0;
+  std::cout << "select time: " << end_sec - start_sec << std::endl;
 
   unsigned rowToremoveIndex = bestRowIndex[mersenne.next(bestRowIndex.size())];
   for (std::vector<unsigned> columns = combinadic.begin(strength);
@@ -539,7 +589,11 @@ void CoveringArray::updateTestSet() { testSet.UpdateTestSetbyACTS(array); }
 void CoveringArray::optimize() {
   updateTestSet();
   while (true) {
-    if ((double)(clock() - clock_start) / CLOCKS_PER_SEC > maxTime) {
+    struct timeval end_time;
+    gettimeofday(&end_time, NULL);
+    double start_time_sec = start_time.tv_sec + start_time.tv_usec / 1000000.0;
+    double end_time_sec = end_time.tv_sec + end_time.tv_usec / 1000000.0;
+    if (end_time_sec - start_time_sec > maxTime) {
       break;
     }
     if (uncoveredTuples.size() == 0) {
@@ -551,15 +605,28 @@ void CoveringArray::optimize() {
       // removeOneRowGreedy();
     }
 
-    //		clock_t start = clock();
+    //    struct timeval start;
+    //    gettimeofday(&start, NULL);
+
     // tabuStep();
     //		tabuStep2();
     //		tabuStep3();
     // tabuStep4();
     // tabuZero();
-    tabugw();
-    //		std::cout << "tabuStep time: " <<  double (clock() - start) /
-    // CLOCKS_PER_SEC << std::endl;
+    size_t tasksNum = uncoveredTuples.size() * array.size();
+    int neededThreadsNum =
+        std::min(threadsNum, (int)std::ceil((double)tasksNum / minTaskSize));
+    if (threadsNum == 1 || neededThreadsNum < 2) {
+      tabugw();
+    } else {
+      tabugwParallel();
+    }
+
+    struct timeval end;
+    //    gettimeofday(&end, NULL);
+    //    double start_sec = start.tv_sec + start.tv_usec / 1000000.0;
+    //    double end_sec = end.tv_sec + end.tv_usec / 1000000.0;
+    //    std::cout << "tabuStep time: " <<  end_sec - start_sec << std::endl;
 
     step++;
     continue;
@@ -575,7 +642,7 @@ void CoveringArray::optimize() {
     std::cout << "wrong answer!!!!!" << std::endl;
     return;
   }
-  // std::cout << "total steps: " << step << std::endl;
+  std::cout << "total steps: " << step << std::endl;
 
   //#ifndef NDEBUG
   std::cerr << "********Debuging CoveringArray::optimize*********" << std::endl;
@@ -676,9 +743,6 @@ void CoveringArray::tabugw() {
       unsigned diffOption = specificationFile.getOptions().option(diffVar);
       // Tabu
       if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
-        continue;
-      }
-      if (testSet.isExistedOption(lineIndex, diffOption)) {
         continue;
       }
       // my check
@@ -809,6 +873,257 @@ void CoveringArray::tabugw() {
     return;
   }
   replaceRow2(mersenne.next(array.size()), tupleEncode);
+}
+
+void CoveringArray::tabugwParallel() {
+  unsigned base = mersenne.next(uncoveredTuples.size());
+  std::vector<unsigned> firstBestRows;
+  std::vector<unsigned> firstBestVars;
+  std::vector<unsigned> bestRows;
+  std::vector<unsigned> bestVars;
+  long long bestScore = std::numeric_limits<long long>::min();
+
+  size_t tasksNum = uncoveredTuples.size() * array.size();
+  int neededThreadsNum =
+      std::min(threadsNum, (int)std::ceil((double)tasksNum / minTaskSize));
+  std::vector<ThreadTmpResult> threadsTmpResult(neededThreadsNum);
+
+  size_t taskSize = tasksNum / neededThreadsNum;
+  int left = tasksNum % neededThreadsNum;
+  size_t startIndex = 0;
+  size_t endIndex;
+  for (int t = 0; t < neededThreadsNum; ++t) {
+    if (left > 0) {
+      endIndex = startIndex + taskSize + 1;
+      --left;
+    } else {
+      endIndex = startIndex + taskSize;
+    }
+    tasks[t] = std::packaged_task<void()>(
+        [t, startIndex, endIndex, &base, &threadsTmpResult, this] {
+          tabugwSubTask(startIndex, endIndex, base, threadsTmpResult[t]);
+        });
+    this->taskReadyPtr[t]->store(true);
+    startIndex = endIndex;
+  }
+
+  tasks[0]();
+
+  // waitting the task to be done
+  while (true) {
+    bool running = false;
+    for (int i = 1; i < neededThreadsNum; ++i) {
+      running = running || taskReadyPtr[i]->load();
+    }
+    if (!running) {
+      break;
+    }
+  }
+
+  // merge the result of sub threads
+  long long firstBestScore = std::numeric_limits<long long>::min();
+  for (ThreadTmpResult &tmpRes : threadsTmpResult) {
+    if (firstBestScore < tmpRes.firstBestScore) {
+      firstBestScore = tmpRes.firstBestScore;
+      firstBestRows.clear();
+      firstBestVars.clear();
+      for (int j = 0; j < tmpRes.firstBestRows.size(); ++j) {
+        firstBestRows.push_back(tmpRes.firstBestRows[j]);
+        firstBestVars.push_back(tmpRes.firstBestVars[j]);
+      }
+    } else if (firstBestScore == tmpRes.firstBestScore) {
+      for (int j = 0; j < tmpRes.firstBestRows.size(); ++j) {
+        firstBestRows.push_back(tmpRes.firstBestRows[j]);
+        firstBestVars.push_back(tmpRes.firstBestVars[j]);
+      }
+    }
+
+    if (bestScore < tmpRes.bestScore) {
+      bestScore = tmpRes.bestScore;
+      bestRows.clear();
+      bestVars.clear();
+      for (int j = 0; j < tmpRes.bestRows.size(); ++j) {
+        bestRows.push_back(tmpRes.bestRows[j]);
+        bestVars.push_back(tmpRes.bestVars[j]);
+      }
+    } else if (bestScore == tmpRes.bestScore) {
+      for (int j = 0; j < tmpRes.bestRows.size(); ++j) {
+        bestRows.push_back(tmpRes.bestRows[j]);
+        bestVars.push_back(tmpRes.bestVars[j]);
+      }
+    }
+  }
+
+  if (bestScore > 0) {
+    unsigned ran = mersenne.next(bestRows.size());
+    replace(bestVars[ran], bestRows[ran]);
+    return;
+  }
+
+  if (mersenne.nextClosed() < 0.001) {
+    replaceRow2(mersenne.next(array.size()), uncoveredTuples.encode(base));
+    return;
+  }
+  if (firstBestRows.size() != 0) {
+    unsigned ran = mersenne.next(firstBestRows.size());
+    replace(firstBestVars[ran], firstBestRows[ran]);
+    return;
+  }
+
+  const unsigned tupleEncode =
+      uncoveredTuples.encode(base % uncoveredTuples.size());
+  const std::vector<unsigned> &tuple = coverage.getTuple(tupleEncode);
+  const std::vector<unsigned> &columns = coverage.getColumns(tupleEncode);
+
+  bestRows.clear();
+
+  std::vector<unsigned> changedVars;
+  std::vector<unsigned> org_vars;
+  for (unsigned lineIndex = 0; lineIndex < array.size(); ++lineIndex) {
+    org_vars.clear();
+    changedVars.clear();
+    std::vector<unsigned> &line = array[lineIndex];
+    for (unsigned i = 0; i < tuple.size(); ++i) {
+      if (line[columns[i]] != tuple[i]) {
+        org_vars.push_back(line[columns[i]]);
+        changedVars.push_back(tuple[i]);
+      }
+    }
+    if (changedVars.size() == 0) {
+      continue;
+    }
+    // Tabu
+    bool isTabu = false;
+    for (auto v : changedVars) {
+      unsigned diffOption = specificationFile.getOptions().option(v);
+      if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
+        isTabu = true;
+        break;
+      }
+    }
+    if (isTabu) {
+      continue;
+    }
+    // check constraint, before tmpScore or after it?
+    bool need_to_check = false;
+    for (auto v : changedVars) {
+      const Options &options = specificationFile.getOptions();
+      if (option_constrained_indicator[options.option(v)]) {
+        need_to_check = true;
+        break;
+      }
+    }
+
+    // my check
+    if (need_to_check && !validater.valida_row(array[lineIndex], changedVars)) {
+      continue;
+    }
+    // greedy
+    long long tmpScore;
+    if (changedVars.size() > 1) {
+      tmpScore = multiVarScoreOfRow2(changedVars, lineIndex);
+    } else {
+      tmpScore = varScoreOfRow3(changedVars[0], lineIndex);
+    }
+    if (bestScore < tmpScore) {
+      bestScore = tmpScore;
+      bestRows.clear();
+      bestRows.push_back(lineIndex);
+    } else if (bestScore == tmpScore) {
+      bestRows.push_back(lineIndex);
+    }
+  }
+  // need to handle when bestRows.size() == 0
+  if (bestRows.size() != 0) {
+    // std::cout << "change_mutivar" << std::endl;
+    unsigned lineIndex = bestRows[mersenne.next(bestRows.size())];
+    changedVars.clear();
+    for (unsigned i = 0; i < tuple.size(); ++i) {
+      if (array[lineIndex][columns[i]] != tuple[i]) {
+        changedVars.push_back(tuple[i]);
+      }
+    }
+    if (changedVars.size() > 1) {
+      // multiVarReplace(changedVars, lineIndex);
+      for (auto v : changedVars) {
+        replace(v, lineIndex);
+      }
+    } else {
+      replace(changedVars[0], lineIndex);
+    }
+    return;
+  }
+  replaceRow2(mersenne.next(array.size()), tupleEncode);
+}
+
+void CoveringArray::tabugwSubTask(const size_t start_index,
+                                  const size_t end_index, const unsigned &base,
+                                  ThreadTmpResult &threadTmpResult) {
+  size_t index = start_index;
+  size_t tupleIndex = index / array.size();
+  size_t lineIndex;
+  unsigned tupleEncode =
+      uncoveredTuples.encode((base + tupleIndex) % uncoveredTuples.size());
+  const std::vector<unsigned> *tuple = &coverage.getTuple(tupleEncode);
+  const std::vector<unsigned> *columns = &coverage.getColumns(tupleEncode);
+
+  for (; index < end_index; ++index) {
+    lineIndex = index % array.size();
+    if (lineIndex == 0) {
+      tupleIndex = index / array.size();
+      tupleEncode =
+          uncoveredTuples.encode((base + tupleIndex) % uncoveredTuples.size());
+      tuple = &coverage.getTuple(tupleEncode);
+      columns = &coverage.getColumns(tupleEncode);
+    }
+    std::vector<unsigned> &line = array[lineIndex];
+    unsigned diffCount = 0;
+    unsigned diffVar;
+    for (unsigned i = 0; i < tuple->size(); ++i) {
+      if (line[columns->at(i)] != tuple->at(i)) {
+        diffCount++;
+        diffVar = tuple->at(i);
+      }
+    }
+    if (diffCount > 1) {
+      continue;
+    }
+    unsigned diffOption = specificationFile.getOptions().option(diffVar);
+    // Tabu
+    if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
+      continue;
+    }
+    if (testSet.isExistedOption(lineIndex, diffOption)) {
+      continue;
+    }
+    // my check
+    if (!validater.valida_change(lineIndex, diffOption, line[diffOption],
+                                 diffVar)) {
+      continue;
+    }
+    long long tmpScore = varScoreOfRow3(diffVar, lineIndex);
+    if (threadTmpResult.bestScore < tmpScore) {
+      threadTmpResult.bestScore = tmpScore;
+      if (tupleIndex == 0) {
+        threadTmpResult.firstBestScore = tmpScore;
+        threadTmpResult.firstBestRows.clear();
+        threadTmpResult.firstBestRows.push_back(lineIndex);
+        threadTmpResult.firstBestVars.clear();
+        threadTmpResult.firstBestVars.push_back(diffVar);
+      }
+      threadTmpResult.bestRows.clear();
+      threadTmpResult.bestRows.push_back(lineIndex);
+      threadTmpResult.bestVars.clear();
+      threadTmpResult.bestVars.push_back(diffVar);
+    } else if (threadTmpResult.bestScore == tmpScore) {
+      threadTmpResult.bestRows.push_back(lineIndex);
+      threadTmpResult.bestVars.push_back(diffVar);
+      if (tupleIndex == 0) {
+        threadTmpResult.firstBestRows.push_back(lineIndex);
+        threadTmpResult.firstBestVars.push_back(diffVar);
+      }
+    }
+  }
 }
 
 void CoveringArray::tabuStep() {
@@ -1927,8 +2242,12 @@ void CoveringArray::uncover(const unsigned encode,
 }
 
 void CoveringArray::tmpPrint() {
-  std::cout << (double)(clock() - clock_start) / CLOCKS_PER_SEC << '\t'
-            << array.size() << '\t' << step << std::endl;
+  struct timeval end_time;
+  gettimeofday(&end_time, NULL);
+  double start_time_sec = start_time.tv_sec + start_time.tv_usec / 1000000.0;
+  double end_time_sec = end_time.tv_sec + end_time.tv_usec / 1000000.0;
+  std::cout << end_time_sec - start_time_sec << '\t' << array.size() << '\t'
+            << step << std::endl;
 }
 
 bool CoveringArray::verify(

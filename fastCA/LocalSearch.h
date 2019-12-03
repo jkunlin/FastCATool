@@ -7,7 +7,7 @@
 
 void localSearch(const SpecificationFile &specificationFile,
                  const ConstraintFile &constrFile,
-                 const unsigned long long maxTime, int seed,
-		 TestSetFile &testSetFile);
+                 const unsigned long long maxTime, int seed, int threadsNum,
+                 TestSetFile &testSetFile);
 
 #endif /* end of include guard: LOCALSEARCH_H */

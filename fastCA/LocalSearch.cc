@@ -7,9 +7,10 @@
 
 void localSearch(const SpecificationFile &specificationFile,
                  const ConstraintFile &constraintFile,
-                 const unsigned long long maxTime, int seed,
-		TestSetFile &testSetFile) {
-  CoveringArray c(specificationFile, constraintFile, testSetFile, maxTime, seed);
+                 const unsigned long long maxTime, int seed, int threadsNum,
+                 TestSetFile &testSetFile) {
+  CoveringArray c(specificationFile, constraintFile, testSetFile, maxTime, seed,
+                  threadsNum);
   //	c.greedyConstraintInitialize2();
   ActsSolver ActsSolver;
   char filename[L_tmpnam];
@@ -19,13 +20,14 @@ void localSearch(const SpecificationFile &specificationFile,
   }
   std::string acts_res_filename = filename;
   acts_res_filename += std::to_string(getpid());
-  ActsSolver.solve(specificationFile, constraintFile, acts_res_filename, testSetFile);
+  ActsSolver.solve(specificationFile, constraintFile, acts_res_filename,
+                   testSetFile);
   c.actsInitialize(acts_res_filename);
   std::string cmd = (std::string) "rm " + acts_res_filename;
   if (system(cmd.c_str()) != 0) {
     std::cerr << "can't remove acts result file" << std::endl;
     exit(0);
   };
-  //return ;
+  // return ;
   c.optimize();
 }
