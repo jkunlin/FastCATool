@@ -33,8 +33,6 @@ public:
                 const ConstraintFile &constraintFile, TestSetFile &testSet,
                 unsigned long long maxT, int seed, int threadsNum);
   ~CoveringArray();
-  void greedyConstraintInitialize();
-  void greedyConstraintInitialize2();
   void actsInitialize(const std::string file_name);
   void optimize();
 
@@ -74,39 +72,19 @@ private:
   void uncover(const unsigned encode, const unsigned oldLineIndex);
   void uncover_with_lock(const unsigned encode, const unsigned oldLineIndex);
   void updateTestSet();
-  // produce one row at least cover one uncovered tuple.
-  // Producing the row without update coverage
-  void produceSatRow(std::vector<unsigned> &newLine, const unsigned encode);
-  // greedily produce one row at least cover one uncovered tuple.
-  // producing the row AND updating coverage
-  void mostGreedySatRow(std::vector<unsigned> &newLine, const unsigned encode);
-  void mostGreedySatRow2(std::vector<unsigned> &newLine, const unsigned encode);
   void replaceRow(const unsigned lineIndex, const unsigned encode);
-  void replaceRow2(const unsigned lineIndex, const unsigned encode);
   void removeUselessRows();
-  void removeUselessRows2();
-  void removeOneRow();
-  void removeOneRowGreedy();
   void removeOneRowRandom();
   long long varScoreOfRow(const unsigned var, const unsigned lineIndex);
-  long long varScoreOfRow2(const unsigned var, const unsigned lineIndex);
-  long long varScoreOfRow3(const unsigned var, const unsigned lineIndex);
   void replace(const unsigned var, const unsigned lineIndex);
 
   long long multiVarRow(const std::vector<unsigned> &sortedMultiVars,
                         const unsigned lineIndex, const bool change = false);
   long long multiVarScoreOfRow(const std::vector<unsigned> &sortedMultiVars,
-                               const unsigned lineIndex);
-  long long multiVarScoreOfRow2(const std::vector<unsigned> &sortedMultiVars,
                                 const unsigned lineIndex);
   void multiVarReplace(const std::vector<unsigned> &sortedMultiVars,
                        const unsigned lineIndex);
 
-  void tabuStep();
-  void tabuStep2();
-  void tabuStep3();
-  void tabuStep4();
-  void tabuZero();
   void tabugw();
   void tabugwParallel();
   void tabugwSubTask(const size_t start_index, const size_t end_index,
@@ -114,9 +92,4 @@ private:
   void tmpPrint();
   bool verify(const std::vector<std::vector<unsigned>> &resultArray);
   bool checkCovered(unsigned encode);
-
-#ifndef NDEBUG
-  void print();
-#endif
-  void t();
 };

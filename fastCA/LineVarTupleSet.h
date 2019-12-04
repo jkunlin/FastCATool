@@ -22,12 +22,6 @@ public:
            const std::vector<unsigned> &tuple);
   void push(const unsigned encode, const unsigned lineIndex,
             const std::vector<unsigned> &tuple);
-  unsigned encode(const unsigned index) { return tupleSet[index]; }
-  unsigned size() const { return tupleSet.size(); }
-  std::vector<unsigned>::const_iterator begin() const {
-    return tupleSet.begin();
-  }
-  std::vector<unsigned>::const_iterator end() const { return tupleSet.end(); }
 
   void pushOneCoveredTuple(const Coverage &coverage,
                            const std::vector<size_t> &coverByLineindex);
@@ -50,10 +44,6 @@ public:
   }
 
 private:
-  std::vector<unsigned> tupleSet; // contents of tuple encode
-  std::vector<std::vector<unsigned>::size_type>
-      mapping; // encode -> index in tupleSet
-
   std::vector<size_t> lineOneCoveredCount;
 
   std::vector<std::vector<std::vector<ECEntry>>> lineVarTupleSet;

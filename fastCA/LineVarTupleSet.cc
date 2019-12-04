@@ -15,7 +15,6 @@ void LineVarTupleSet::initialize(const SpecificationFile &specificationFile,
     }
     MaxSize += blockSize;
   }
-  mapping.resize(MaxSize);
   varMapping.resize(MaxSize, std::vector<size_t>(strength));
   lineVarTupleSet.resize(array_size);
   for (unsigned i = 0; i < array_size; ++i) {
@@ -36,9 +35,6 @@ void LineVarTupleSet::pushOneCoveredTuple(
 
 void LineVarTupleSet::push(const unsigned encode, const unsigned lineIndex,
                            const std::vector<unsigned> &tuple) {
-  mapping[encode] = tupleSet.size();
-  tupleSet.push_back(encode);
-
   lineOneCoveredCount[lineIndex]++;
   for (size_t i = 0; i < tuple.size(); ++i) {
     unsigned var = tuple[i];
@@ -49,10 +45,6 @@ void LineVarTupleSet::push(const unsigned encode, const unsigned lineIndex,
 
 void LineVarTupleSet::pop(const unsigned encode, const unsigned lineIndex,
                           const std::vector<unsigned> &tuple) {
-  tupleSet[mapping[encode]] = tupleSet[tupleSet.size() - 1];
-  mapping[tupleSet[tupleSet.size() - 1]] = mapping[encode];
-  tupleSet.pop_back();
-
   lineOneCoveredCount[lineIndex]--;
   for (size_t i = 0; i < tuple.size(); ++i) {
     unsigned var = tuple[i];

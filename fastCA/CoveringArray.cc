@@ -181,154 +181,8 @@ void CoveringArray::actsInitialize(const std::string file_name) {
 #endif
 }
 
-// void CoveringArray::call_acts(const ConstraintFile &constraintFile) {
-//	std::string acts_inputfile_name = "input_acts";
-//	std::ofstream acts_infile(acts_inputfile_name);
-//	if (!acts_infile.is_open()) {
-//		std::cerr << "open failed" << std::endl;
-//		exit(0);
-//	}
-//
-//	acts_infile << "[System]" << std::endl;
-//	acts_infile << "Name: " << acts_inputfile_name << std::endl <<
-// std::endl;
-//	acts_infile << "[Parameter]" << std::endl;
-//
-//	const Options &options = specificationFile.getOptions();
-//	for (unsigned option = 0; option < options.size(); ++option) {
-//		acts_infile << 'p' << option << "(int): ";
-//		acts_infile << 0;
-//		for (unsigned var = 1; var < options.symbolCount(option); ++var)
-//{
-//			acts_infile << ',' << var;
-//		}
-//		acts_infile << std::endl;
-//	}
-//
-//	acts_infile << std::endl << "[Constraint]" << std::endl;
-//	const Valid::Formula &formula = constraintFile.getFormula();
-//	for (auto &c : formula) {
-//		const unsigned option = options.option(c[0].variable());
-//		acts_infile << 'p' << option;
-//		c[0].is_negative() ? acts_infile << "!=" : acts_infile << "=";
-//		acts_infile << c[0].variable() - options.firstSymbol(option);
-//		for (unsigned i = 1; i < c.size(); ++i) {
-//			acts_infile <<  " || ";
-//			const unsigned option = options.option(c[i].variable());
-//			acts_infile << 'p' << option;
-//			c[i].is_negative() ? acts_infile << "!=" : acts_infile
-//<<
-//"=";
-//			acts_infile << c[i].variable() -
-// options.firstSymbol(option);
-//		}
-//		acts_infile << std::endl;
-//	}
-//}
-
-void CoveringArray::produceSatRow(std::vector<unsigned> &newLine,
-                                  const unsigned encode) {
-  const unsigned strength = specificationFile.getStrenth();
-  const Options &options = specificationFile.getOptions();
-  const unsigned width = options.size();
-  assert(width == newLine.size());
-
-  InputKnown known;
-  const std::vector<unsigned> &ranTuple = coverage.getTuple(encode);
-  const std::vector<unsigned> &ranTupleColumns = coverage.getColumns(encode);
-  for (unsigned i = 0; i < strength; ++i) {
-    newLine[ranTupleColumns[i]] = ranTuple[i];
-    if (option_constrained_indicator[ranTupleColumns[i]]) {
-      known.append(InputTerm(false, ranTuple[i]));
-    }
-  }
-  std::vector<bool> columnStarted(width, false);
-  std::vector<unsigned> columnBases(width);
-  for (unsigned column = 0, passing = 0; column < width; ++column) {
-    if (passing < strength && column == ranTupleColumns[passing]) {
-      passing++;
-      continue;
-    }
-    columnBases[column] = mersenne.next(options.symbolCount(column));
-    newLine[column] = options.firstSymbol(column) + columnBases[column] - 1;
-  }
-  for (long column = 0, passing = 0; column < width; ++column) {
-    if (passing < strength && column == ranTupleColumns[passing]) {
-      passing++;
-      continue;
-    }
-    const unsigned firstSymbol = options.firstSymbol(column);
-    const unsigned lastSymbol = options.lastSymbol(column);
-    while (true) {
-      newLine[column]++;
-      if (newLine[column] > lastSymbol) {
-        newLine[column] = firstSymbol;
-      }
-      if (newLine[column] == firstSymbol + columnBases[column]) {
-        // backtrack
-        if (columnStarted[column]) {
-          std::cout << "backtracking" << std::endl;
-          columnStarted[column] = false;
-          // assign it the value before starting
-          newLine[column]--;
-          column--;
-          while (passing > 0 && column == ranTupleColumns[passing - 1]) {
-            column--;
-            passing--;
-          }
-          if (option_constrained_indicator[column]) {
-            known.undoAppend();
-          }
-          // undo column++ of the "for" loop
-          column--;
-          // the var of parent column is now unabled
-          break;
-        } else {
-          columnStarted[column] = true;
-        }
-      }
-      if (option_constrained_indicator[column]) {
-        known.append(InputTerm(false, newLine[column]));
-        if (satSolver(known)) {
-          break;
-        }
-        known.undoAppend();
-      } else {
-        break;
-      }
-    }
-  }
-}
-
 void CoveringArray::replaceRow(const unsigned lineIndex,
                                const unsigned encode) {
-  std::vector<unsigned> &ranLine = array[lineIndex];
-  const unsigned strength = specificationFile.getStrenth();
-  std::vector<unsigned> tmpTuple(strength);
-  // uncover the tuples
-  for (std::vector<unsigned> columns = combinadic.begin(strength);
-       columns[strength - 1] < ranLine.size(); combinadic.next(columns)) {
-    for (unsigned i = 0; i < strength; ++i) {
-      tmpTuple[i] = ranLine[columns[i]];
-    }
-    uncover(coverage.encode(columns, tmpTuple), lineIndex);
-  }
-  produceSatRow(ranLine, encode);
-  // cover the tuples
-  for (std::vector<unsigned> columns = combinadic.begin(strength);
-       columns[strength - 1] < ranLine.size(); combinadic.next(columns)) {
-    for (unsigned i = 0; i < strength; ++i) {
-      tmpTuple[i] = ranLine[columns[i]];
-    }
-    cover(coverage.encode(columns, tmpTuple), lineIndex);
-  }
-  entryTabu.initialize(
-      Entry(array.size(), specificationFile.getOptions().size()));
-  validater.change_row(lineIndex, ranLine);
-}
-
-void CoveringArray::replaceRow2(const unsigned lineIndex,
-                                const unsigned encode) {
   std::vector<unsigned> &ranLine = array[lineIndex];
   const unsigned strength = specificationFile.getStrenth();
   std::vector<unsigned> tmpTuple(strength);
@@ -370,7 +224,7 @@ void CoveringArray::replaceRow2(const unsigned lineIndex,
   validater.change_row(lineIndex, ranLine);
 }
 
-void CoveringArray::removeUselessRows2() {
+void CoveringArray::removeUselessRows() {
   const Options &options = specificationFile.getOptions();
   const unsigned strength = specificationFile.getStrenth();
   std::vector<unsigned> tmpTuple(strength);
@@ -404,153 +258,6 @@ void CoveringArray::removeUselessRows2() {
       ++lineIndex;
     }
   }
-}
-
-void CoveringArray::removeUselessRows() {
-  const Options &options = specificationFile.getOptions();
-  const unsigned strength = specificationFile.getStrenth();
-  std::vector<unsigned> tmpTuple(strength);
-
-  for (unsigned i = 0; i < array.size(); ++i) {
-    bool useless = true;
-    const std::vector<unsigned> &line = array[i];
-    for (std::vector<unsigned> columns = combinadic.begin(strength);
-         columns[strength - 1] < options.size(); combinadic.next(columns)) {
-      for (unsigned j = 0; j < strength; ++j) {
-        tmpTuple[j] = line[columns[j]];
-      }
-      unsigned encode = coverage.encode(columns, tmpTuple);
-      if (coverage.coverCount(encode) == 1) {
-        useless = false;
-        break;
-      }
-    }
-    if (useless) {
-      for (std::vector<unsigned> columns = combinadic.begin(strength);
-           columns[strength - 1] < options.size(); combinadic.next(columns)) {
-        for (unsigned j = 0; j < strength; ++j) {
-          tmpTuple[j] = line[columns[j]];
-        }
-        unsigned encode = coverage.encode(columns, tmpTuple);
-        uncover(encode, i);
-      }
-      std::swap(array[i], array[array.size() - 1]);
-      for (auto &entry : entryTabu) {
-        if (entry.getRow() == array.size() - 1) {
-          entry.setRow(i);
-        }
-        if (entry.getRow() == i) {
-          entry.setRow(array.size() - 1);
-        }
-      }
-      validater.exchange_row(i, array.size() - 1);
-      validater.pop_back_row();
-      oneCoveredTuples.exchange_row(i, array.size() - 1);
-      oneCoveredTuples.pop_back_row();
-      array.pop_back();
-      --i;
-    }
-  }
-}
-
-void CoveringArray::removeOneRow() {
-  const Options &options = specificationFile.getOptions();
-  const unsigned strength = specificationFile.getStrenth();
-  unsigned minUncoverCount = std::numeric_limits<unsigned>::max();
-  std::vector<unsigned> bestRowIndex;
-  std::vector<unsigned> tmpTuple(strength);
-  struct timeval start;
-  gettimeofday(&start, NULL);
-  for (unsigned i = 0; i < array.size(); ++i) {
-    unsigned uncoverCount = 0;
-    const std::vector<unsigned> &line = array[i];
-    for (std::vector<unsigned> columns = combinadic.begin(strength);
-         columns[strength - 1] < options.size(); combinadic.next(columns)) {
-      for (unsigned j = 0; j < strength; ++j) {
-        tmpTuple[j] = line[columns[j]];
-      }
-      unsigned encode = coverage.encode(columns, tmpTuple);
-      if (coverage.coverCount(encode) == 1) {
-        uncoverCount++;
-      }
-    }
-    if (uncoverCount < minUncoverCount) {
-      minUncoverCount = uncoverCount;
-      bestRowIndex.clear();
-      bestRowIndex.push_back(i);
-    } else if (uncoverCount == minUncoverCount) {
-      bestRowIndex.push_back(i);
-    }
-  }
-
-  struct timeval end;
-  gettimeofday(&end, NULL);
-  double start_sec = start.tv_sec + start.tv_usec / 1000000.0;
-  double end_sec = end.tv_sec + end.tv_usec / 1000000.0;
-  std::cout << "select time: " << end_sec - start_sec << std::endl;
-
-  unsigned rowToremoveIndex = bestRowIndex[mersenne.next(bestRowIndex.size())];
-  for (std::vector<unsigned> columns = combinadic.begin(strength);
-       columns[strength - 1] < options.size(); combinadic.next(columns)) {
-    for (unsigned j = 0; j < strength; ++j) {
-      tmpTuple[j] = array[rowToremoveIndex][columns[j]];
-    }
-    unsigned encode = coverage.encode(columns, tmpTuple);
-    uncover(encode, rowToremoveIndex);
-  }
-
-  std::swap(array[array.size() - 1], array[rowToremoveIndex]);
-  validater.exchange_row(rowToremoveIndex, array.size() - 1);
-  validater.pop_back_row();
-  for (auto &entry : entryTabu) {
-    if (entry.getRow() == array.size() - 1) {
-      entry.setRow(rowToremoveIndex);
-    }
-    if (entry.getRow() == rowToremoveIndex) {
-      entry.setRow(array.size() - 1);
-    }
-  }
-  array.pop_back();
-}
-
-void CoveringArray::removeOneRowGreedy() {
-  const Options &options = specificationFile.getOptions();
-  const unsigned strength = specificationFile.getStrenth();
-
-  unsigned rowToremoveIndex = 0;
-  unsigned minOneCoveredCount = oneCoveredTuples.oneCoveredCount(0);
-  for (size_t lineIndex = 1; lineIndex < array.size(); ++lineIndex) {
-    unsigned oneCoveredCount = oneCoveredTuples.oneCoveredCount(lineIndex);
-    if (minOneCoveredCount > oneCoveredCount) {
-      minOneCoveredCount = oneCoveredCount;
-      rowToremoveIndex = lineIndex;
-    }
-  }
-
-  std::vector<unsigned> tmpTuple(strength);
-  for (std::vector<unsigned> columns = combinadic.begin(strength);
-       columns[strength - 1] < options.size(); combinadic.next(columns)) {
-    for (unsigned j = 0; j < strength; ++j) {
-      tmpTuple[j] = array[rowToremoveIndex][columns[j]];
-    }
-    unsigned encode = coverage.encode(columns, tmpTuple);
-    uncover(encode, rowToremoveIndex);
-  }
-
-  std::swap(array[array.size() - 1], array[rowToremoveIndex]);
-  validater.exchange_row(rowToremoveIndex, array.size() - 1);
-  validater.pop_back_row();
-  oneCoveredTuples.exchange_row(rowToremoveIndex, array.size() - 1);
-  oneCoveredTuples.pop_back_row();
-  for (auto &entry : entryTabu) {
-    if (entry.getRow() == array.size() - 1) {
-      entry.setRow(rowToremoveIndex);
-    }
-    if (entry.getRow() == rowToremoveIndex) {
-      entry.setRow(array.size() - 1);
-    }
-  }
-  array.pop_back();
 }
 
 void CoveringArray::removeOneRowRandom() {
@@ -597,22 +304,12 @@ void CoveringArray::optimize() {
       break;
     }
     if (uncoveredTuples.size() == 0) {
-      removeUselessRows2();
+      removeUselessRows();
       bestArray = array;
       tmpPrint();
-      //			removeOneRow();
       removeOneRowRandom();
-      // removeOneRowGreedy();
     }
 
-    //    struct timeval start;
-    //    gettimeofday(&start, NULL);
-
-    // tabuStep();
-    //		tabuStep2();
-    //		tabuStep3();
-    // tabuStep4();
-    // tabuZero();
     size_t tasksNum = uncoveredTuples.size() * array.size();
     int neededThreadsNum =
         std::min(threadsNum, (int)std::ceil((double)tasksNum / minTaskSize));
@@ -623,17 +320,13 @@ void CoveringArray::optimize() {
     }
 
     struct timeval end;
-    //    gettimeofday(&end, NULL);
-    //    double start_sec = start.tv_sec + start.tv_usec / 1000000.0;
-    //    double end_sec = end.tv_sec + end.tv_usec / 1000000.0;
-    //    std::cout << "tabuStep time: " <<  end_sec - start_sec << std::endl;
 
     step++;
     continue;
   }
 
   if (uncoveredTuples.size() == 0) {
-    removeUselessRows2();
+    removeUselessRows();
     bestArray = array;
     tmpPrint();
   }
@@ -658,61 +351,6 @@ void CoveringArray::optimize() {
   std::cerr << "********End of Debuing CoveringArray::optimize********"
             << std::endl;
   //#endif
-}
-
-void CoveringArray::tabuZero() {
-  const unsigned tupleEncode =
-      uncoveredTuples.encode(mersenne.next(uncoveredTuples.size()));
-  const std::vector<unsigned> &tuple = coverage.getTuple(tupleEncode);
-  const std::vector<unsigned> &columns = coverage.getColumns(tupleEncode);
-  if (mersenne.next(1000) < 1) {
-    replaceRow2(mersenne.next(array.size()), tupleEncode);
-    return;
-  }
-  std::vector<unsigned> bestRows;
-  std::vector<unsigned> bestVars;
-  long long bestScore = std::numeric_limits<long long>::min();
-  for (unsigned lineIndex = 0; lineIndex < array.size(); ++lineIndex) {
-    std::vector<unsigned> &line = array[lineIndex];
-    unsigned diffCount = 0;
-    unsigned diffVar;
-    for (unsigned i = 0; i < tuple.size(); ++i) {
-      if (line[columns[i]] != tuple[i]) {
-        diffCount++;
-        diffVar = tuple[i];
-      }
-    }
-    if (diffCount > 1) {
-      continue;
-    }
-    unsigned diffOption = specificationFile.getOptions().option(diffVar);
-    // Tabu
-    if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
-      continue;
-    }
-    // my check
-    if (!validater.valida_change(lineIndex, diffOption, line[diffOption],
-                                 diffVar)) {
-      continue;
-    }
-    long long tmpScore = varScoreOfRow2(diffVar, lineIndex);
-    if (bestScore < tmpScore) {
-      bestScore = tmpScore;
-      bestRows.clear();
-      bestRows.push_back(lineIndex);
-      bestVars.clear();
-      bestVars.push_back(diffVar);
-    } else if (bestScore == tmpScore) {
-      bestRows.push_back(lineIndex);
-      bestVars.push_back(diffVar);
-    }
-  }
-  if (bestRows.size() != 0) {
-    unsigned ran = mersenne.next(bestRows.size());
-    replace(bestVars[ran], bestRows[ran]);
-    return;
-  }
-  replaceRow2(mersenne.next(array.size()), tupleEncode);
 }
 
 void CoveringArray::tabugw() {
@@ -750,7 +388,7 @@ void CoveringArray::tabugw() {
                                    diffVar)) {
         continue;
       }
-      long long tmpScore = varScoreOfRow3(diffVar, lineIndex);
+      long long tmpScore = varScoreOfRow(diffVar, lineIndex);
       if (bestScore < tmpScore) {
         bestScore = tmpScore;
         if (i == 0) {
@@ -780,7 +418,7 @@ void CoveringArray::tabugw() {
   }
 
   if (mersenne.nextClosed() < 0.001) {
-    replaceRow2(mersenne.next(array.size()), uncoveredTuples.encode(base));
+    replaceRow(mersenne.next(array.size()), uncoveredTuples.encode(base));
     return;
   }
   if (firstBestRows.size() != 0) {
@@ -840,9 +478,9 @@ void CoveringArray::tabugw() {
     // greedy
     long long tmpScore;
     if (changedVars.size() > 1) {
-      tmpScore = multiVarScoreOfRow2(changedVars, lineIndex);
+      tmpScore = multiVarScoreOfRow(changedVars, lineIndex);
     } else {
-      tmpScore = varScoreOfRow3(changedVars[0], lineIndex);
+      tmpScore = varScoreOfRow(changedVars[0], lineIndex);
     }
     if (bestScore < tmpScore) {
       bestScore = tmpScore;
@@ -872,7 +510,7 @@ void CoveringArray::tabugw() {
     }
     return;
   }
-  replaceRow2(mersenne.next(array.size()), tupleEncode);
+  replaceRow(mersenne.next(array.size()), tupleEncode);
 }
 
 void CoveringArray::tabugwParallel() {
@@ -961,7 +599,7 @@ void CoveringArray::tabugwParallel() {
   }
 
   if (mersenne.nextClosed() < 0.001) {
-    replaceRow2(mersenne.next(array.size()), uncoveredTuples.encode(base));
+    replaceRow(mersenne.next(array.size()), uncoveredTuples.encode(base));
     return;
   }
   if (firstBestRows.size() != 0) {
@@ -1021,9 +659,9 @@ void CoveringArray::tabugwParallel() {
     // greedy
     long long tmpScore;
     if (changedVars.size() > 1) {
-      tmpScore = multiVarScoreOfRow2(changedVars, lineIndex);
+      tmpScore = multiVarScoreOfRow(changedVars, lineIndex);
     } else {
-      tmpScore = varScoreOfRow3(changedVars[0], lineIndex);
+      tmpScore = varScoreOfRow(changedVars[0], lineIndex);
     }
     if (bestScore < tmpScore) {
       bestScore = tmpScore;
@@ -1053,7 +691,7 @@ void CoveringArray::tabugwParallel() {
     }
     return;
   }
-  replaceRow2(mersenne.next(array.size()), tupleEncode);
+  replaceRow(mersenne.next(array.size()), tupleEncode);
 }
 
 void CoveringArray::tabugwSubTask(const size_t start_index,
@@ -1101,7 +739,7 @@ void CoveringArray::tabugwSubTask(const size_t start_index,
                                  diffVar)) {
       continue;
     }
-    long long tmpScore = varScoreOfRow3(diffVar, lineIndex);
+    long long tmpScore = varScoreOfRow(diffVar, lineIndex);
     if (threadTmpResult.bestScore < tmpScore) {
       threadTmpResult.bestScore = tmpScore;
       if (tupleIndex == 0) {
@@ -1126,643 +764,9 @@ void CoveringArray::tabugwSubTask(const size_t start_index,
   }
 }
 
-void CoveringArray::tabuStep() {
-  const unsigned tupleEncode =
-      uncoveredTuples.encode(mersenne.next(uncoveredTuples.size()));
-  const std::vector<unsigned> &tuple = coverage.getTuple(tupleEncode);
-  const std::vector<unsigned> &columns = coverage.getColumns(tupleEncode);
-  if (mersenne.next(1000) < 1) {
-    replaceRow(mersenne.next(array.size()), tupleEncode);
-    return;
-  }
-  std::vector<unsigned> bestRows;
-  std::vector<unsigned> bestVars;
-  //	unsigned count = 0;
-  long long bestScore = std::numeric_limits<long long>::min();
-  for (unsigned lineIndex = 0; lineIndex < array.size(); ++lineIndex) {
-    std::vector<unsigned> &line = array[lineIndex];
-    unsigned diffCount = 0;
-    unsigned diffVar;
-    for (unsigned i = 0; i < tuple.size(); ++i) {
-      if (line[columns[i]] != tuple[i]) {
-        diffCount++;
-        diffVar = tuple[i];
-      }
-    }
-    if (diffCount > 1) {
-      continue;
-    }
-    unsigned diffOption = specificationFile.getOptions().option(diffVar);
-    // Tabu
-    if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
-      continue;
-    }
-    // check if the new assignment will follow the constraints
-    // if (option_constrained_indicator[diffOption]) {
-    //   InputKnown known;
-    //   for (unsigned i = 0; i < line.size(); ++i) {
-    //     if (i == diffOption) {
-    //       known.append(InputTerm(false, diffVar));
-    //     } else {
-    //       known.append(InputTerm(false, line[i]));
-    //     }
-    //   }
-    //   if (satSolver(known) !=
-    //       validater.valida_change(lineIndex, diffOption, line[diffOption],
-    //                               diffVar)) {
-    //     //			validater.print(array);
-    //     std::cout << "lineIndex: " << lineIndex << std::endl;
-    //     for (auto v : array[lineIndex]) {
-    //       std::cout << v << ' ';
-    //     }
-    //     std::cout << std::endl << "new_var: " << diffVar << std::endl;
-    //     exit(0);
-    //   }
-    //   if (!satSolver(known)) {
-    //     continue;
-    //   }
-    // }
-    // my check
-    if (!validater.valida_change(lineIndex, diffOption, line[diffOption],
-                                 diffVar)) {
-      continue;
-    }
-    long long tmpScore = varScoreOfRow3(diffVar, lineIndex);
-    // long long tmpScore2 = varScoreOfRow(diffVar, lineIndex);
-    // if (tmpScore != tmpScore2) {
-    //   std::cout << "abort" << std::endl;
-    //   abort();
-    // }
-    if (bestScore < tmpScore) {
-      bestScore = tmpScore;
-      bestRows.clear();
-      bestRows.push_back(lineIndex);
-      bestVars.clear();
-      bestVars.push_back(diffVar);
-    } else if (bestScore == tmpScore) {
-      bestRows.push_back(lineIndex);
-      bestVars.push_back(diffVar);
-    }
-  }
-  if (bestRows.size() != 0) {
-    //		std::cout << "tabuStep: valueRow.size() = " << count  <<
-    //"\tbestRows.size() = " << bestRows.size() << "\tbestScore = " <<
-    // bestScore << std::endl;
-    unsigned ran = mersenne.next(bestRows.size());
-    replace(bestVars[ran], bestRows[ran]);
-    return;
-  }
-
-  if (mersenne.next(100) < 1) {
-    // std::cout << "second replaceRow" << std::endl;
-    replaceRow(mersenne.next(array.size()), tupleEncode);
-    return;
-  }
-
-  std::vector<unsigned> changedVars;
-  std::vector<unsigned> org_vars;
-  for (unsigned lineIndex = 0; lineIndex < array.size(); ++lineIndex) {
-    org_vars.clear();
-    changedVars.clear();
-    std::vector<unsigned> &line = array[lineIndex];
-    for (unsigned i = 0; i < tuple.size(); ++i) {
-      if (line[columns[i]] != tuple[i]) {
-        org_vars.push_back(line[columns[i]]);
-        changedVars.push_back(tuple[i]);
-      }
-    }
-    if (changedVars.size() == 0) {
-      continue;
-    }
-    // Tabu
-    bool isTabu = true;
-    for (auto v : changedVars) {
-      unsigned diffOption = specificationFile.getOptions().option(v);
-      if (!entryTabu.isTabu(Entry(lineIndex, diffOption))) {
-        isTabu = false;
-        break;
-      }
-    }
-    if (isTabu) {
-      continue;
-    }
-    // check constraint, before tmpScore or after it?
-    bool need_to_check = false;
-    for (auto v : changedVars) {
-      const Options &options = specificationFile.getOptions();
-      if (option_constrained_indicator[options.option(v)]) {
-        need_to_check = true;
-        break;
-      }
-    }
-    // if (need_to_check) {
-    //   InputKnown known;
-    //   for (unsigned column = 0, passing = 0; column < line.size(); ++column)
-    //   {
-    //     if (passing < tuple.size() && column == columns[passing]) {
-    //       known.append(InputTerm(false, tuple[passing++]));
-    //     } else {
-    //       known.append(InputTerm(false, line[column]));
-    //     }
-    //   }
-    //   if (satSolver(known) !=
-    //       validater.valida_row(array[lineIndex], changedVars)) {
-    //
-    //     // validater.print(array);
-    //     std::cout << "check error lineIndex: " << lineIndex << std::endl;
-    //     for (auto v : array[lineIndex]) {
-    //       std::cout << v << ' ';
-    //     }
-    //     std::cout << std::endl << "new_vars: ";
-    //     for (auto v : changedVars) {
-    //       std::cout << v << ' ';
-    //     }
-    //     std::cout << std::endl;
-    //     abort();
-    //   }
-    //   if (!satSolver(known)) {
-    //     continue;
-    //   }
-    // }
-
-    // my check
-    if (need_to_check && !validater.valida_row(array[lineIndex], changedVars)) {
-      continue;
-    }
-    // greedy
-    long long tmpScore;
-    if (changedVars.size() > 1) {
-      tmpScore = multiVarScoreOfRow2(changedVars, lineIndex);
-    } else {
-      tmpScore = varScoreOfRow2(changedVars[0], lineIndex);
-    }
-    if (bestScore < tmpScore) {
-      bestScore = tmpScore;
-      bestRows.clear();
-      bestRows.push_back(lineIndex);
-    } else if (bestScore == tmpScore) {
-      bestRows.push_back(lineIndex);
-    }
-  }
-  // need to handle when bestRows.size() == 0
-  if (bestRows.size() != 0) {
-    // std::cout << "change_mutivar" << std::endl;
-    unsigned lineIndex = bestRows[mersenne.next(bestRows.size())];
-    changedVars.clear();
-    for (unsigned i = 0; i < tuple.size(); ++i) {
-      if (array[lineIndex][columns[i]] != tuple[i]) {
-        changedVars.push_back(tuple[i]);
-      }
-    }
-    if (changedVars.size() > 1) {
-      // multiVarReplace(changedVars, lineIndex);
-      for (auto v : changedVars) {
-        replace(v, lineIndex);
-      }
-    } else {
-      replace(changedVars[0], lineIndex);
-    }
-    return;
-  }
-  // std::cout << "third replaceRow" << std::endl;
-  // std::cout << bestScore << std::endl;
-  replaceRow(mersenne.next(array.size()), tupleEncode);
-}
-
-void CoveringArray::tabuStep2() {
-  const unsigned tupleEncode =
-      uncoveredTuples.encode(mersenne.next(uncoveredTuples.size()));
-
-  const std::vector<unsigned> &tuple = coverage.getTuple(tupleEncode);
-  const std::vector<unsigned> &columns = coverage.getColumns(tupleEncode);
-  if (mersenne.next(1000) < 1) {
-    //		std::cout << "first replaceRow" << std::endl;
-    replaceRow(mersenne.next(array.size()), tupleEncode);
-    return;
-  }
-  std::vector<unsigned> bestRows;
-  std::vector<unsigned> bestVars;
-  long long bestScore = std::numeric_limits<long long>::min();
-  for (unsigned i = 0, base = mersenne.next(array.size()); i < array.size();
-       ++i) {
-    unsigned lineIndex = (base + i) % array.size();
-    std::vector<unsigned> &line = array[lineIndex];
-    unsigned diffCount = 0;
-    unsigned diffVar;
-    for (unsigned i = 0; i < tuple.size(); ++i) {
-      if (line[columns[i]] != tuple[i]) {
-        diffCount++;
-        diffVar = tuple[i];
-      }
-    }
-    if (diffCount > 1) {
-      continue;
-    }
-    unsigned diffOption = specificationFile.getOptions().option(diffVar);
-    // Tabu
-    if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
-      continue;
-    }
-    // check if the new assignment will follow the constraints
-    //		if (option_constrained_indicator[diffOption]) {
-    //			InputKnown known;
-    //			for (unsigned i = 0; i < line.size(); ++i) {
-    //				if (i == diffOption) {
-    //					known.append(InputTerm(false, diffVar));
-    //				}
-    //				else {
-    //					known.append(InputTerm(false, line[i]));
-    //				}
-    //			}
-    //			if (!satSolver(known)) {
-    //				continue;
-    //			}
-    //		}
-    //		if (satSolver(known) != validater.valida_change(lineIndex,
-    // diffOption,
-    // line[diffOption], diffVar)) {
-    //
-    ////			validater.print(array);
-    //			std::cout << "lineIndex: " << lineIndex << std::endl;
-    //			for (auto v : array[lineIndex]) {
-    //				std::cout << v << ' ';
-    //			}
-    //			std::cout << std::endl << "new_var: " << diffVar <<
-    // std::endl;
-    //			exit(0);
-    //		}
-    // my check
-    if (!validater.valida_change(lineIndex, diffOption, line[diffOption],
-                                 diffVar)) {
-      continue;
-    }
-    long long tmpScore = varScoreOfRow(diffVar, lineIndex);
-    //		if (tmpScore > -1) {
-    //			replace(diffVar, lineIndex);
-    //			return;
-    //		}
-    if (bestScore < tmpScore) {
-      bestScore = tmpScore;
-      bestRows.clear();
-      bestRows.push_back(lineIndex);
-      bestVars.clear();
-      bestVars.push_back(diffVar);
-    } else if (bestScore == tmpScore) {
-      bestRows.push_back(lineIndex);
-      bestVars.push_back(diffVar);
-    }
-  }
-  if (bestRows.size() != 0) {
-    unsigned ran = mersenne.next(bestRows.size());
-    replace(bestVars[ran], bestRows[ran]);
-    return;
-  }
-
-  if (mersenne.next(100) < 1) {
-    std::cout << "second replaceRow" << std::endl;
-    replaceRow(mersenne.next(array.size()), tupleEncode);
-    return;
-  }
-
-  std::vector<unsigned> changedVars;
-  std::vector<unsigned> org_vars;
-  for (unsigned lineIndex = 0; lineIndex < array.size(); ++lineIndex) {
-    org_vars.clear();
-    changedVars.clear();
-    std::vector<unsigned> &line = array[lineIndex];
-    for (unsigned i = 0; i < tuple.size(); ++i) {
-      if (line[columns[i]] != tuple[i]) {
-        org_vars.push_back(line[columns[i]]);
-        changedVars.push_back(tuple[i]);
-      }
-    }
-    if (changedVars.size() == 0) {
-      continue;
-    }
-    // check constraint, before tmpScore or after it?
-    bool need_to_check = false;
-    for (auto v : changedVars) {
-      const Options &options = specificationFile.getOptions();
-      if (option_constrained_indicator[options.option(v)]) {
-        need_to_check = true;
-        break;
-      }
-    }
-    // my check
-    if (need_to_check && !validater.valida_row(array[lineIndex], changedVars)) {
-      continue;
-    }
-    // greedy
-    long long tmpScore = multiVarScoreOfRow(changedVars, lineIndex);
-    if (bestScore < tmpScore) {
-      bestScore = tmpScore;
-      bestRows.clear();
-      bestRows.push_back(lineIndex);
-    } else if (bestScore == tmpScore) {
-      bestRows.push_back(lineIndex);
-    }
-  }
-  // need to handle when bestRows.size() == 0
-  if (bestRows.size() != 0) {
-    unsigned lineIndex = bestRows[mersenne.next(bestRows.size())];
-    changedVars.clear();
-    for (unsigned i = 0; i < tuple.size(); ++i) {
-      if (array[lineIndex][columns[i]] != tuple[i]) {
-        changedVars.push_back(tuple[i]);
-      }
-    }
-    std::cout << "multiVarReplace" << std::endl;
-    multiVarReplace(changedVars, lineIndex);
-    return;
-  }
-  std::cout << "third replaceRow" << std::endl;
-  replaceRow(mersenne.next(array.size()), tupleEncode);
-}
-
-// give priority to candidates with score > 0
-void CoveringArray::tabuStep3() {
-  const unsigned tupleEncode =
-      uncoveredTuples.encode(mersenne.next(uncoveredTuples.size()));
-
-  const std::vector<unsigned> &tuple = coverage.getTuple(tupleEncode);
-  const std::vector<unsigned> &columns = coverage.getColumns(tupleEncode);
-  if (mersenne.next(1000) < 1) {
-    std::cout << "first replaceRow" << std::endl;
-    replaceRow(mersenne.next(array.size()), tupleEncode);
-    return;
-  }
-  std::vector<unsigned> bestRows;
-  std::vector<unsigned> bestVars;
-  long long bestScore = std::numeric_limits<long long>::min();
-  for (unsigned i = 0, base = mersenne.next(array.size()); i < array.size();
-       ++i) {
-    unsigned lineIndex = (base + i) % array.size();
-    std::vector<unsigned> &line = array[lineIndex];
-    unsigned diffCount = 0;
-    unsigned diffVar;
-    for (unsigned i = 0; i < tuple.size(); ++i) {
-      if (line[columns[i]] != tuple[i]) {
-        diffCount++;
-        diffVar = tuple[i];
-      }
-    }
-    if (diffCount > 1) {
-      continue;
-    }
-    unsigned diffOption = specificationFile.getOptions().option(diffVar);
-    // Tabu
-    if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
-      continue;
-    }
-    // my check
-    if (!validater.valida_change(lineIndex, diffOption, line[diffOption],
-                                 diffVar)) {
-      continue;
-    }
-    long long tmpScore = varScoreOfRow(diffVar, lineIndex);
-    if (tmpScore > 0) {
-      //			std::cout << "score = " << tmpScore <<
-      // std::endl;
-      replace(diffVar, lineIndex);
-      return;
-    }
-    if (bestScore < tmpScore) {
-      bestScore = tmpScore;
-      bestRows.clear();
-      bestRows.push_back(lineIndex);
-      bestVars.clear();
-      bestVars.push_back(diffVar);
-    } else if (bestScore == tmpScore) {
-      bestRows.push_back(lineIndex);
-      bestVars.push_back(diffVar);
-    }
-  }
-  if (bestRows.size() != 0) {
-    //		std::cout << "score = " << bestScore << std::endl;
-    unsigned ran = mersenne.next(bestRows.size());
-    replace(bestVars[ran], bestRows[ran]);
-    return;
-  }
-
-  if (mersenne.next(100) < 1) {
-    std::cout << "second replaceRow" << std::endl;
-    replaceRow(mersenne.next(array.size()), tupleEncode);
-    return;
-  }
-
-  std::vector<unsigned> changedVars;
-  std::vector<unsigned> org_vars;
-  for (unsigned lineIndex = 0; lineIndex < array.size(); ++lineIndex) {
-    org_vars.clear();
-    changedVars.clear();
-    std::vector<unsigned> &line = array[lineIndex];
-    for (unsigned i = 0; i < tuple.size(); ++i) {
-      if (line[columns[i]] != tuple[i]) {
-        org_vars.push_back(line[columns[i]]);
-        changedVars.push_back(tuple[i]);
-      }
-    }
-    if (changedVars.size() == 0) {
-      continue;
-    }
-    // check constraint, before tmpScore or after it?
-    bool need_to_check = false;
-    for (auto v : changedVars) {
-      const Options &options = specificationFile.getOptions();
-      if (option_constrained_indicator[options.option(v)]) {
-        need_to_check = true;
-        break;
-      }
-    }
-    // my check
-    if (need_to_check && !validater.valida_row(array[lineIndex], changedVars)) {
-      continue;
-    }
-    // greedy
-    long long tmpScore = multiVarScoreOfRow(changedVars, lineIndex);
-    if (bestScore < tmpScore) {
-      bestScore = tmpScore;
-      bestRows.clear();
-      bestRows.push_back(lineIndex);
-    } else if (bestScore == tmpScore) {
-      bestRows.push_back(lineIndex);
-    }
-  }
-  // need to handle when bestRows.size() == 0
-  if (bestRows.size() != 0) {
-    unsigned lineIndex = bestRows[mersenne.next(bestRows.size())];
-    changedVars.clear();
-    for (unsigned i = 0; i < tuple.size(); ++i) {
-      if (array[lineIndex][columns[i]] != tuple[i]) {
-        changedVars.push_back(tuple[i]);
-      }
-    }
-    std::cout << "multiVarReplace, score = " << bestScore << std::endl;
-    multiVarReplace(changedVars, lineIndex);
-    return;
-  }
-  std::cout << "third replaceRow" << std::endl;
-  replaceRow(mersenne.next(array.size()), tupleEncode);
-}
-
-// candidate with score > 0; then randomly switch between all candidate and
-// bestScore candidate
-void CoveringArray::tabuStep4() {
-  const unsigned tupleEncode =
-      uncoveredTuples.encode(mersenne.next(uncoveredTuples.size()));
-
-  const std::vector<unsigned> &tuple = coverage.getTuple(tupleEncode);
-  const std::vector<unsigned> &columns = coverage.getColumns(tupleEncode);
-  if (mersenne.next(1000) < 1) {
-    //		std::cout << "first replaceRow" << std::endl;
-    replaceRow(mersenne.next(array.size()), tupleEncode);
-    return;
-  }
-  std::vector<unsigned> bestRows;
-  std::vector<unsigned> bestVars;
-  std::vector<unsigned> candRows;
-  std::vector<unsigned> candVars;
-  std::vector<long long> candScores;
-  long long bestScore = std::numeric_limits<long long>::min();
-  for (unsigned i = 0, base = mersenne.next(array.size()); i < array.size();
-       ++i) {
-    unsigned lineIndex = (base + i) % array.size();
-    std::vector<unsigned> &line = array[lineIndex];
-    unsigned diffCount = 0;
-    unsigned diffVar;
-    for (unsigned i = 0; i < tuple.size(); ++i) {
-      if (line[columns[i]] != tuple[i]) {
-        diffCount++;
-        diffVar = tuple[i];
-      }
-    }
-    if (diffCount > 1) {
-      continue;
-    }
-    unsigned diffOption = specificationFile.getOptions().option(diffVar);
-    // my check
-    if (!validater.valida_change(lineIndex, diffOption, line[diffOption],
-                                 diffVar)) {
-      continue;
-    }
-    candRows.push_back(lineIndex);
-    candVars.push_back(diffVar);
-    // Tabu
-    if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
-      continue;
-    }
-    // long long tmpScore = varScoreOfRow(diffVar, lineIndex);
-    long long tmpScore = varScoreOfRow2(diffVar, lineIndex);
-    // if (tmpScore != tmpScore2) {
-    //   std::cerr << "error" << std::endl;
-    //   abort();
-    // }
-    if (tmpScore > 0) {
-      //			std::cout << "descend score: " << tmpScore <<
-      // std::endl;
-      replace(diffVar, lineIndex);
-      return;
-    }
-    if (bestScore < tmpScore) {
-      bestScore = tmpScore;
-      bestRows.clear();
-      bestRows.push_back(lineIndex);
-      bestVars.clear();
-      bestVars.push_back(diffVar);
-    } else if (bestScore == tmpScore) {
-      bestRows.push_back(lineIndex);
-      bestVars.push_back(diffVar);
-    }
-    //		candRows.push_back(lineIndex);
-    //		candVars.push_back(diffVar);
-    //		candScores.push_back(tmpScore);
-  }
-  if (mersenne.next(1000) < 10) {
-    // TODO: add tabu cand
-    if (candRows.size() != 0) {
-      unsigned ran = mersenne.next(candRows.size());
-      //			std::cout << "random cand Score: " <<
-      // candScores[ran] << "\tsize: " << candRows.size();
-      //			std::cout << "\tbestScore" << bestScore <<
-      //"\tsize: " << bestRows.size() << std::endl;
-      replace(candVars[ran], candRows[ran]);
-      return;
-    }
-  } else {
-    if (bestRows.size() != 0) {
-      //			std::cout << "best score: " << bestScore <<
-      // std::endl;
-      unsigned ran = mersenne.next(bestRows.size());
-      replace(bestVars[ran], bestRows[ran]);
-      return;
-    }
-  }
-
-  if (mersenne.next(100) < 1) {
-    //		std::cout << "second replaceRow" << std::endl;
-    replaceRow(mersenne.next(array.size()), tupleEncode);
-    return;
-  }
-
-  std::vector<unsigned> changedVars;
-  std::vector<unsigned> org_vars;
-  for (unsigned lineIndex = 0; lineIndex < array.size(); ++lineIndex) {
-    org_vars.clear();
-    changedVars.clear();
-    std::vector<unsigned> &line = array[lineIndex];
-    for (unsigned i = 0; i < tuple.size(); ++i) {
-      if (line[columns[i]] != tuple[i]) {
-        org_vars.push_back(line[columns[i]]);
-        changedVars.push_back(tuple[i]);
-      }
-    }
-    if (changedVars.size() == 0) {
-      continue;
-    }
-    // check constraint, before tmpScore or after it?
-    bool need_to_check = false;
-    for (auto v : changedVars) {
-      const Options &options = specificationFile.getOptions();
-      if (option_constrained_indicator[options.option(v)]) {
-        need_to_check = true;
-        break;
-      }
-    }
-    // my check
-    if (need_to_check && !validater.valida_row(array[lineIndex], changedVars)) {
-      continue;
-    }
-    // greedy
-    long long tmpScore = multiVarScoreOfRow(changedVars, lineIndex);
-    if (bestScore < tmpScore) {
-      bestScore = tmpScore;
-      bestRows.clear();
-      bestRows.push_back(lineIndex);
-    } else if (bestScore == tmpScore) {
-      bestRows.push_back(lineIndex);
-    }
-  }
-  // need to handle when bestRows.size() == 0
-  if (bestRows.size() != 0) {
-    unsigned lineIndex = bestRows[mersenne.next(bestRows.size())];
-    changedVars.clear();
-    for (unsigned i = 0; i < tuple.size(); ++i) {
-      if (array[lineIndex][columns[i]] != tuple[i]) {
-        changedVars.push_back(tuple[i]);
-      }
-    }
-    //		std::cout << "multiVarReplace score: " << bestScore <<
-    // std::endl;
-    multiVarReplace(changedVars, lineIndex);
-    return;
-  }
-  //	std::cout << "third replaceRow" << std::endl;
-  replaceRow(mersenne.next(array.size()), tupleEncode);
-}
-
 long long
-CoveringArray::multiVarScoreOfRow2(const std::vector<unsigned> &sortedMultiVars,
-                                   const unsigned lineIndex) {
+CoveringArray::multiVarScoreOfRow(const std::vector<unsigned> &sortedMultiVars,
+                                  const unsigned lineIndex) {
   const Options &options = specificationFile.getOptions();
   std::vector<unsigned> &line = array[lineIndex];
   std::vector<unsigned> changedColumns;
@@ -1969,11 +973,6 @@ CoveringArray::multiVarRow(const std::vector<unsigned> &sortedMultiVars,
   return score;
 }
 
-long long
-CoveringArray::multiVarScoreOfRow(const std::vector<unsigned> &sortedMultiVars,
-                                  const unsigned lineIndex) {
-  return multiVarRow(sortedMultiVars, lineIndex, false);
-}
 void CoveringArray::multiVarReplace(
     const std::vector<unsigned> &sortedMultiVars, const unsigned lineIndex) {
   const Options &options = specificationFile.getOptions();
@@ -1988,99 +987,6 @@ void CoveringArray::multiVarReplace(
 
 long long CoveringArray::varScoreOfRow(const unsigned var,
                                        const unsigned lineIndex) {
-  const Options &options = specificationFile.getOptions();
-  const unsigned strength = specificationFile.getStrenth();
-  std::vector<unsigned> &line = array[lineIndex];
-  const unsigned varOption = options.option(var);
-  if (line[varOption] == var) {
-    return 0;
-  }
-  std::swap(line[line.size() - 1], line[varOption]);
-
-  long long coverChangeCount = 0;
-  std::vector<unsigned> tmpSortedColumns(strength);
-  std::vector<unsigned> tmpSortedTupleToCover(strength);
-  std::vector<unsigned> tmpSortedTupleToUncover(strength);
-  for (std::vector<unsigned> columns = combinadic.begin(strength - 1);
-       columns[strength - 2] < line.size() - 1; combinadic.next(columns)) {
-    for (unsigned i = 0; i < columns.size(); ++i) {
-      tmpSortedTupleToUncover[i] = tmpSortedTupleToCover[i] = line[columns[i]];
-    }
-    tmpSortedTupleToCover[strength - 1] = var;
-    tmpSortedTupleToUncover[strength - 1] = line[line.size() - 1];
-    std::sort(tmpSortedTupleToCover.begin(), tmpSortedTupleToCover.end());
-    std::sort(tmpSortedTupleToUncover.begin(), tmpSortedTupleToUncover.end());
-    for (unsigned i = 0; i < tmpSortedTupleToCover.size(); ++i) {
-      tmpSortedColumns[i] = options.option(tmpSortedTupleToCover[i]);
-    }
-    unsigned tmpTupleToCoverEncode =
-        coverage.encode(tmpSortedColumns, tmpSortedTupleToCover);
-    unsigned tmpTupleToUncoverEncode =
-        coverage.encode(tmpSortedColumns, tmpSortedTupleToUncover);
-    if (coverage.coverCount(tmpTupleToCoverEncode) == 0) {
-      coverChangeCount++;
-    }
-    if (coverage.coverCount(tmpTupleToUncoverEncode) == 1) {
-      coverChangeCount--;
-    }
-  }
-
-  std::swap(line[line.size() - 1], line[varOption]);
-
-  return coverChangeCount;
-}
-
-long long CoveringArray::varScoreOfRow2(const unsigned var,
-                                        const unsigned lineIndex) {
-  const Options &options = specificationFile.getOptions();
-  std::vector<unsigned> &line = array[lineIndex];
-  const unsigned varOption = options.option(var);
-  if (line[varOption] == var) {
-    return 0;
-  }
-  long long coverChangeCount = 0;
-  for (auto tupleEncode : uncoveredTuples) {
-    const std::vector<unsigned> &tuple = coverage.getTuple(tupleEncode);
-    const std::vector<unsigned> &columns = coverage.getColumns(tupleEncode);
-    bool match = false;
-    bool needChange = true;
-    for (size_t i = 0; i < columns.size(); ++i) {
-      if (columns[i] == varOption) {
-        match = true;
-        if (tuple[i] != var) {
-          needChange = false;
-          break;
-        }
-      } else if (line[columns[i]] != tuple[i]) {
-        needChange = false;
-        break;
-      }
-    }
-    if (match && needChange) {
-      coverChangeCount++;
-    }
-  }
-  for (auto &ecEntry :
-       oneCoveredTuples.getECbyLineVar(lineIndex, line[varOption])) {
-    unsigned tupleEncode = ecEntry.encode;
-    const std::vector<unsigned> &tuple = coverage.getTuple(tupleEncode);
-    const std::vector<unsigned> &columns = coverage.getColumns(tupleEncode);
-    bool needChange = true;
-    for (size_t i = 0; i < columns.size(); ++i) {
-      if (line[columns[i]] != tuple[i]) {
-        needChange = false;
-        break;
-      }
-    }
-    if (needChange) {
-      coverChangeCount--;
-    }
-  }
-  return coverChangeCount;
-}
-
-long long CoveringArray::varScoreOfRow3(const unsigned var,
-                                        const unsigned lineIndex) {
   const Options &options = specificationFile.getOptions();
   std::vector<unsigned> &line = array[lineIndex];
   const unsigned varOption = options.option(var);
@@ -2138,7 +1044,6 @@ bool CoveringArray::checkCovered(unsigned encode) {
   return false;
 }
 
-// quite similar to varScoreOfRow function
 void CoveringArray::replace(const unsigned var, const unsigned lineIndex) {
   const Options &options = specificationFile.getOptions();
   const unsigned strength = specificationFile.getStrenth();
