@@ -7,10 +7,10 @@
 
 void localSearch(const SpecificationFile &specificationFile,
                  const ConstraintFile &constraintFile,
-                 const unsigned long long maxTime, int seed, int threadsNum,
-                 TestSetFile &testSetFile) {
+                 TestSetFile &testSetFile, const unsigned long long maxTime, int seed,
+                 int threadsNum, int minScoreTaskSize, int minReplaceTaskSize) {
   CoveringArray c(specificationFile, constraintFile, testSetFile, maxTime, seed,
-                  threadsNum);
+                  threadsNum, minScoreTaskSize, minReplaceTaskSize);
   //	c.greedyConstraintInitialize2();
   ActsSolver ActsSolver;
   char filename[L_tmpnam];

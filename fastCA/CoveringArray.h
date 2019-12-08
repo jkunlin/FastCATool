@@ -31,7 +31,7 @@ class CoveringArray {
 public:
   CoveringArray(const SpecificationFile &specificationFile,
                 const ConstraintFile &constraintFile, TestSetFile &testSet,
-                unsigned long long maxT, int seed, int threadsNum);
+                unsigned long long maxT, int seed, int threadsNum, int minScoreTaskSize, int minReplaceTaskSize);
   ~CoveringArray();
   void actsInitialize(const std::string file_name);
   void optimize();
@@ -55,17 +55,17 @@ private:
   unsigned long long step;
   struct timeval start_time;
 
-  int minTaskSize = 100;
-  std::vector<std::atomic<bool> *> taskReadyPtr;
+  int minScoreTaskSize;
+  int minReplaceTaskSize;
+  std::vector<std::atomic<bool> *> taskReadyPtrs;
   std::vector<std::thread *> threadsPtr;
   std::vector<std::packaged_task<void()>> tasks;
   std::atomic<bool> programStop;
   int threadsNum;
+  PascalTriangle pt;
 
   std::mutex uncoveredTuplesMutex;
   std::mutex oneCoveredTuplesMutex;
-  std::vector<unsigned> columns1;
-  std::vector<unsigned> columns2;
 
   void cover(const unsigned encode, const unsigned oldLineIndex);
   void cover_with_lock(const unsigned encode, const unsigned oldLineIndex);
@@ -77,6 +77,7 @@ private:
   void removeOneRowRandom();
   long long varScoreOfRow(const unsigned var, const unsigned lineIndex);
   void replace(const unsigned var, const unsigned lineIndex);
+  void replaceParallel(const unsigned int var, const unsigned int lineIndex);
 
   long long multiVarRow(const std::vector<unsigned> &sortedMultiVars,
                         const unsigned lineIndex, const bool change = false);
@@ -89,6 +90,10 @@ private:
   void tabugwParallel();
   void tabugwSubTask(const size_t start_index, const size_t end_index,
                      const unsigned &base, ThreadTmpResult &threadTmpResult);
+  void tabugwReplaceSubTask(const unsigned &var, const unsigned &lineIndex,
+                            const Options &options, const unsigned &strength,
+                            std::vector<unsigned> &line,
+                            std::vector<unsigned> columns, size_t count);
   void tmpPrint();
   bool verify(const std::vector<std::vector<unsigned>> &resultArray);
   bool checkCovered(unsigned encode);

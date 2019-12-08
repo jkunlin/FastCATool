@@ -6,8 +6,8 @@
 #include "TestSetFile.H"
 
 void localSearch(const SpecificationFile &specificationFile,
-                 const ConstraintFile &constrFile,
-                 const unsigned long long maxTime, int seed, int threadsNum,
-                 TestSetFile &testSetFile);
+                 const ConstraintFile &constraintFile,
+                 TestSetFile &testSetFile, const unsigned long long maxTime, int seed,
+                 int threadsNum, int minScoreTaskSize, int minReplaceTaskSize);
 
 #endif /* end of include guard: LOCALSEARCH_H */

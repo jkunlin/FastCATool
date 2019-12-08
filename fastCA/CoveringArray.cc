@@ -2,7 +2,7 @@
 CoveringArray::CoveringArray(const SpecificationFile &specificationFile,
                              const ConstraintFile &constraintFile,
                              TestSetFile &testSet, unsigned long long maxT,
-                             int seed, int threadsNum)
+                             int seed, int threadsNum, int minScoreTaskSize, int minReplaceTaskSize)
     : validater(specificationFile), satSolver(constraintFile.isEmpty()),
       specificationFile(specificationFile), testSet(testSet),
       coverage(specificationFile), entryTabu(4), maxTime(maxT) {
@@ -61,28 +61,31 @@ CoveringArray::CoveringArray(const SpecificationFile &specificationFile,
   step = 0;
 
   this->threadsNum = threadsNum;
+  this->minScoreTaskSize = minScoreTaskSize;
+  this->minReplaceTaskSize = minReplaceTaskSize;
+
   // parallel
   if (this->threadsNum > 1) {
     tasks.resize(threadsNum);
     programStop.store(false);
 
     for (int t = 0; t < threadsNum; ++t) {
-      taskReadyPtr.push_back(new std::atomic<bool>(false));
+      taskReadyPtrs.push_back(new std::atomic<bool>(false));
     }
 
     for (int t = 1; t < threadsNum; ++t) {
       threadsPtr.push_back(new std::thread([t, this] {
         while (true) {
           while (true) {
-            if (this->taskReadyPtr[t]->load() || this->programStop.load())
+            if (this->taskReadyPtrs[t]->load() || this->programStop.load())
               break;
           }
-          if (this->taskReadyPtr[t]->load())
+          if (this->taskReadyPtrs[t]->load())
             tasks[t]();
           if (this->programStop.load()) {
             break;
           }
-          this->taskReadyPtr[t]->store(false);
+          this->taskReadyPtrs[t]->store(false);
         }
       }));
     }
@@ -97,6 +100,10 @@ CoveringArray::~CoveringArray() {
     for (auto threadptr : threadsPtr) {
       threadptr->join();
       delete threadptr;
+    }
+
+    for(auto taskReadyPtr : taskReadyPtrs){
+      delete taskReadyPtr;
     }
   }
 }
@@ -312,7 +319,7 @@ void CoveringArray::optimize() {
 
     size_t tasksNum = uncoveredTuples.size() * array.size();
     int neededThreadsNum =
-        std::min(threadsNum, (int)std::ceil((double)tasksNum / minTaskSize));
+        std::min(threadsNum, (int)std::ceil((double)tasksNum / minScoreTaskSize));
     if (threadsNum == 1 || neededThreadsNum < 2) {
       tabugw();
     } else {
@@ -413,7 +420,7 @@ void CoveringArray::tabugw() {
   }
   if (bestScore > 0) {
     unsigned ran = mersenne.next(bestRows.size());
-    replace(bestVars[ran], bestRows[ran]);
+    replaceParallel(bestVars[ran], bestRows[ran]);
     return;
   }
 
@@ -423,7 +430,7 @@ void CoveringArray::tabugw() {
   }
   if (firstBestRows.size() != 0) {
     unsigned ran = mersenne.next(firstBestRows.size());
-    replace(firstBestVars[ran], firstBestRows[ran]);
+    replaceParallel(firstBestVars[ran], firstBestRows[ran]);
     return;
   }
 
@@ -503,10 +510,10 @@ void CoveringArray::tabugw() {
     if (changedVars.size() > 1) {
       // multiVarReplace(changedVars, lineIndex);
       for (auto v : changedVars) {
-        replace(v, lineIndex);
+        replaceParallel(v, lineIndex);
       }
     } else {
-      replace(changedVars[0], lineIndex);
+      replaceParallel(changedVars[0], lineIndex);
     }
     return;
   }
@@ -523,7 +530,7 @@ void CoveringArray::tabugwParallel() {
 
   size_t tasksNum = uncoveredTuples.size() * array.size();
   int neededThreadsNum =
-      std::min(threadsNum, (int)std::ceil((double)tasksNum / minTaskSize));
+      std::min(threadsNum, (int)std::ceil((double)tasksNum / minScoreTaskSize));
   std::vector<ThreadTmpResult> threadsTmpResult(neededThreadsNum);
 
   size_t taskSize = tasksNum / neededThreadsNum;
@@ -541,17 +548,17 @@ void CoveringArray::tabugwParallel() {
         [t, startIndex, endIndex, &base, &threadsTmpResult, this] {
           tabugwSubTask(startIndex, endIndex, base, threadsTmpResult[t]);
         });
-    this->taskReadyPtr[t]->store(true);
+    this->taskReadyPtrs[t]->store(true);
     startIndex = endIndex;
   }
 
   tasks[0]();
 
-  // waitting the task to be done
+  // waitting the subtasks to be done
   while (true) {
     bool running = false;
     for (int i = 1; i < neededThreadsNum; ++i) {
-      running = running || taskReadyPtr[i]->load();
+      running = running || taskReadyPtrs[i]->load();
     }
     if (!running) {
       break;
@@ -594,7 +601,7 @@ void CoveringArray::tabugwParallel() {
 
   if (bestScore > 0) {
     unsigned ran = mersenne.next(bestRows.size());
-    replace(bestVars[ran], bestRows[ran]);
+    replaceParallel(bestVars[ran], bestRows[ran]);
     return;
   }
 
@@ -604,7 +611,7 @@ void CoveringArray::tabugwParallel() {
   }
   if (firstBestRows.size() != 0) {
     unsigned ran = mersenne.next(firstBestRows.size());
-    replace(firstBestVars[ran], firstBestRows[ran]);
+    replaceParallel(firstBestVars[ran], firstBestRows[ran]);
     return;
   }
 
@@ -684,10 +691,10 @@ void CoveringArray::tabugwParallel() {
     if (changedVars.size() > 1) {
       // multiVarReplace(changedVars, lineIndex);
       for (auto v : changedVars) {
-        replace(v, lineIndex);
+        replaceParallel(v, lineIndex);
       }
     } else {
-      replace(changedVars[0], lineIndex);
+      replaceParallel(changedVars[0], lineIndex);
     }
     return;
   }
@@ -1077,12 +1084,110 @@ void CoveringArray::replace(const unsigned var, const unsigned lineIndex) {
         coverage.encode(tmpSortedColumns, tmpSortedTupleToCover);
     unsigned tmpTupleToUncoverEncode =
         coverage.encode(tmpSortedColumns, tmpSortedTupleToUncover);
-    // need not check coverCount, cover(encode) will do this
     cover(tmpTupleToCoverEncode, lineIndex);
     uncover(tmpTupleToUncoverEncode, lineIndex);
   }
   std::swap(line[line.size() - 1], line[varOption]);
   line[varOption] = var;
+}
+
+ void CoveringArray::replaceParallel(const unsigned var, const unsigned lineIndex) {
+  std::vector<unsigned> &line = array[lineIndex];
+  const Options &options = specificationFile.getOptions();
+  const unsigned strength = specificationFile.getStrenth();
+  const unsigned varOption = options.option(var);
+
+  size_t taskNum = 0;
+  taskNum = pt.nCr(line.size() - 1, strength-1);
+
+//  std::cout << taskNum << std::endl;
+  int neededThreadsNum =
+           std::min(threadsNum, (int)std::ceil((double)taskNum / minReplaceTaskSize));
+  if (threadsNum == 1 || neededThreadsNum < 2){
+    replace(var, lineIndex);
+    return;
+  }
+
+  entryTabu.insert(Entry(lineIndex, varOption));
+
+  if (line[varOption] == var) {
+    return;
+  }
+
+  validater.change_var(lineIndex, varOption, line[varOption], var);
+  std::swap(line[line.size() - 1], line[varOption]);
+
+  size_t taskSize = taskNum / neededThreadsNum;
+  int left = taskNum % neededThreadsNum;
+  size_t count;
+  std::vector<unsigned> columns = combinadic.begin(strength - 1);
+  columns = combinadic.begin(strength - 1);
+  for (int t = 0; t < neededThreadsNum; ++t) {
+    if (left > 0) {
+      count = taskSize + 1;
+      --left;
+    } else {
+      count = taskSize;
+    }
+
+    tasks[t] = std::packaged_task<void()>(
+        [&var, &lineIndex, &options, &strength, &line, columns, count, this] {
+          this->tabugwReplaceSubTask(var, lineIndex, options, strength, line, columns, count);
+        });
+    taskReadyPtrs[t]->store(true);
+
+    for (int i = 0; i < count; ++i) {
+      combinadic.next(columns);
+    }
+  }
+
+  tasks[0]();
+
+  // waitting the subtasks to be done
+  while (true) {
+    bool running = false;
+    for (int i = 1; i < neededThreadsNum; ++i) {
+      running = running || taskReadyPtrs[i]->load();
+    }
+    if (!running) {
+      break;
+    }
+  }
+
+ std::swap(line[line.size() - 1], line[varOption]);
+ line[varOption] = var;
+}
+
+void CoveringArray::tabugwReplaceSubTask(
+    const unsigned &var, const unsigned &lineIndex, const Options &options,
+    const unsigned &strength, std::vector<unsigned> &line,
+    std::vector<unsigned> columns, size_t count) {
+  {
+    std::vector<unsigned> tmpSortedColumns(strength);
+    std::vector<unsigned> tmpSortedTupleToCover(strength);
+    std::vector<unsigned> tmpSortedTupleToUncover(strength);
+    for (size_t done = 0; done < count; ++done, combinadic.next(columns)) {
+      for (unsigned i = 0; i < columns.size(); ++i) {
+        tmpSortedTupleToUncover[i] = tmpSortedTupleToCover[i] =
+            line[columns[i]];
+      }
+
+      tmpSortedTupleToCover[strength - 1] = var;
+      tmpSortedTupleToUncover[strength - 1] = line[line.size() - 1];
+      std::sort(tmpSortedTupleToCover.begin(), tmpSortedTupleToCover.end());
+      std::sort(tmpSortedTupleToUncover.begin(), tmpSortedTupleToUncover.end());
+      for (unsigned i = 0; i < tmpSortedTupleToCover.size(); ++i) {
+        tmpSortedColumns[i] = options.option(tmpSortedTupleToCover[i]);
+      }
+      unsigned tmpTupleToCoverEncode =
+          coverage.encode(tmpSortedColumns, tmpSortedTupleToCover);
+      unsigned tmpTupleToUncoverEncode =
+          coverage.encode(tmpSortedColumns, tmpSortedTupleToUncover);
+      // need not check coverCount, cover(encode) will do this
+      cover_with_lock(tmpTupleToCoverEncode, lineIndex);
+      uncover_with_lock(tmpTupleToUncoverEncode, lineIndex);
+    }
+  }
 }
 
 void CoveringArray::cover(const unsigned encode, const unsigned oldLineIndex) {
@@ -1115,6 +1220,46 @@ void CoveringArray::cover(const unsigned encode, const unsigned oldLineIndex) {
   }
 }
 
+void CoveringArray::cover_with_lock(const unsigned encode,
+                                    const unsigned oldLineIndex) {
+  coverage.cover(encode);
+  unsigned coverCount = coverage.coverCount(encode);
+  if (coverCount == 1) {
+    {
+      std::lock_guard<std::mutex> lg(uncoveredTuplesMutex);
+      uncoveredTuples.pop(encode);
+    }
+    {
+      std::lock_guard<std::mutex> lg(oneCoveredTuplesMutex);
+      oneCoveredTuples.push(encode, oldLineIndex, coverage.getTuple(encode));
+    }
+  }
+  if (coverCount == 2) {
+    const std::vector<unsigned> &tuple = coverage.getTuple(encode);
+    const std::vector<unsigned> &columns = coverage.getColumns(encode);
+    for (size_t lineIndex = 0; lineIndex < array.size(); ++lineIndex) {
+      if (lineIndex == oldLineIndex) {
+        continue;
+      }
+      auto &line = array[lineIndex];
+      bool match = true;
+      for (size_t i = 0; i < columns.size(); ++i) {
+        if (tuple[i] != line[columns[i]]) {
+          match = false;
+          break;
+        }
+      }
+      if (match) {
+        {
+          std::lock_guard<std::mutex> lg(oneCoveredTuplesMutex);
+          oneCoveredTuples.pop(encode, lineIndex, tuple);
+        }
+        break;
+      }
+    }
+  }
+}
+
 void CoveringArray::uncover(const unsigned encode,
                             const unsigned oldLineIndex) {
   coverage.uncover(encode);
@@ -1140,6 +1285,46 @@ void CoveringArray::uncover(const unsigned encode,
       }
       if (match) {
         oneCoveredTuples.push(encode, lineIndex, tuple);
+        break;
+      }
+    }
+  }
+}
+
+void CoveringArray::uncover_with_lock(const unsigned encode,
+                                      const unsigned oldLineIndex) {
+  coverage.uncover(encode);
+  unsigned coverCount = coverage.coverCount(encode);
+  if (coverCount == 0) {
+    {
+      std::lock_guard<std::mutex> lg(uncoveredTuplesMutex);
+      uncoveredTuples.push(encode);
+    }
+    {
+      std::lock_guard<std::mutex> lg(oneCoveredTuplesMutex);
+      oneCoveredTuples.pop(encode, oldLineIndex, coverage.getTuple(encode));
+    }
+  }
+  if (coverCount == 1) {
+    const std::vector<unsigned> &tuple = coverage.getTuple(encode);
+    const std::vector<unsigned> &columns = coverage.getColumns(encode);
+    for (size_t lineIndex = 0; lineIndex < array.size(); ++lineIndex) {
+      if (lineIndex == oldLineIndex) {
+        continue;
+      }
+      auto &line = array[lineIndex];
+      bool match = true;
+      for (size_t i = 0; i < columns.size(); ++i) {
+        if (tuple[i] != line[columns[i]]) {
+          match = false;
+          break;
+        }
+      }
+      if (match) {
+        {
+          std::lock_guard<std::mutex> lg(oneCoveredTuplesMutex);
+          oneCoveredTuples.push(encode, lineIndex, tuple);
+        }
         break;
       }
     }

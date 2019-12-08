@@ -22,10 +22,14 @@ int main(int argc, char const *argv[]) {
   unsigned long long maxTime;
   int seed;
   int threadsNum;
+  int minScoreTaskSize;
+  int minReplaceTaskSize;
+
   string testFile("");
 
   map<string, string> parameters_map = {
-      {"-f", ""}, {"-c", ""}, {"-t", "0"}, {"-s", "0"}, {"-p", "1"}};
+      {"-f", ""}, {"-c", ""}, {"-t", "0"}, {"-s", "0"},
+      {"-p", "1"}, {"-minScoreTaskSize", "100"}, {"-minReplaceTaskSize", "120"}};
 
   vector<string> parameterVec;
   for (int i = 1; i < argc - 1; i += 2) {
@@ -59,11 +63,23 @@ int main(int argc, char const *argv[]) {
     threadsNum = atoi(parameters_map["-p"].c_str());
   }
 
+  if (atoi(parameters_map["-minScoreTaskSize"].c_str()) < 1) {
+    return 1;
+  } else {
+    minScoreTaskSize = atoi(parameters_map["-minScoreTaskSize"].c_str());
+  }
+
+  if (atoi(parameters_map["-minReplaceTaskSize"].c_str()) < 1) {
+    return 1;
+  } else {
+    minReplaceTaskSize = atoi(parameters_map["-minReplaceTaskSize"].c_str());
+  }
+
   SpecificationFile specificationFile(modelFile);
   ConstraintFile constraintFile(constrFile);
   TestSetFile testSetFile(testFile);
   testSetFile.convert2acts(specificationFile);
-  localSearch(specificationFile, constrFile, maxTime, seed, threadsNum,
-              testSetFile);
+  localSearch(specificationFile, constrFile, testSetFile, maxTime, seed,
+          threadsNum, minScoreTaskSize, minReplaceTaskSize);
   return 0;
 }
