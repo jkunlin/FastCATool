@@ -31,10 +31,16 @@ class ConstraintFile {
   Valid::Formula formula;
 
 public:
+  ConstraintFile() {}
   ConstraintFile(const std::string &filename);
+  void initClause(Valid::Formula &f);
   bool isEmpty() const { return clauses.size() == 0; }
   const std::vector<InputClause> &getClauses() const;
   const Valid::Formula &getFormula() const { return formula; }
+
+#ifndef NVISIBLE
+  void print() { formula.print(); }
+#endif
 };
 
 #endif

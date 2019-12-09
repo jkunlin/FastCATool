@@ -1,15 +1,15 @@
 #include "Options.h"
 
-void Options::initialize(const std::vector<unsigned> &values) {
-  cumulativeValueCounts.resize(values.size());
+void Options::initialize(const std::vector<unsigned> &value_counts) {
+  cumulativeValueCounts.resize(value_counts.size());
   unsigned cumulativeValueCount = 0;
-  for (std::vector<unsigned>::size_type i = 0; i < values.size(); ++i) {
-    cumulativeValueCount += values[i];
+  for (std::vector<unsigned>::size_type i = 0; i < value_counts.size(); ++i) {
+    cumulativeValueCount += value_counts[i];
     cumulativeValueCounts[i] = cumulativeValueCount;
   }
   owingOptions.resize(cumulativeValueCount);
-  for (unsigned i = 0, j = 0; i < values.size(); ++i) {
-    for (unsigned k = 0; k < values[i]; ++k) {
+  for (unsigned i = 0, j = 0; i < value_counts.size(); ++i) {
+    for (unsigned k = 0; k < value_counts[i]; ++k) {
       owingOptions[j++] = i;
     }
   }

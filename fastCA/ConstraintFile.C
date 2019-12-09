@@ -42,11 +42,23 @@ ConstraintFile::ConstraintFile(const string &filename) {
       } while (sign != '-' && sign != '+');
       fileInputStream >> symbol;
       clause.append(InputTerm(sign == '-', symbol));
-      valid_clause.addLiteral(Valid::Literal(sign == '-', symbol));
+      valid_clause.push_back(Valid::Literal(sign == '-', symbol));
     }
     formula.addClause(std::move(valid_clause));
   }
   fileInputStream.close();
+}
+
+void ConstraintFile::initClause(Valid::Formula &f) {
+  formula = f;
+  std::vector<InputClause>(formula.size()).swap(clauses);
+  for (int i = 0; i < formula.size(); i++) {
+    auto &cl = formula[i];
+    InputClause &clause = clauses[i];
+    for (auto lit : cl) {
+      clause.append(InputTerm(lit.is_negative(), lit.variable()));
+    }
+  }
 }
 
 const std::vector<InputClause> &ConstraintFile::getClauses() const {

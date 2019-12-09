@@ -25,7 +25,12 @@
 
 class SpecificationFile {
 public:
+  SpecificationFile(){};
   SpecificationFile(const std::string &filename);
+  void setStrenth(const int s) { strength = s; }
+  void initialize(const std::vector<unsigned> &value_counts) {
+    options.initialize(value_counts);
+  }
   const Options &getOptions() const { return options; }
   unsigned getStrenth() const { return strength; }
 

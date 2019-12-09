@@ -6,7 +6,7 @@
 class Options {
 public:
   Options() {}
-  void initialize(const std::vector<unsigned> &values);
+  void initialize(const std::vector<unsigned> &value_counts);
   unsigned size() const { return cumulativeValueCounts.size(); }
   unsigned option(const unsigned symbol) const { return owingOptions[symbol]; };
   unsigned firstSymbol(const unsigned option) const {

@@ -24,11 +24,11 @@ SpecificationFile::SpecificationFile(const std::string &filename) {
   }
   unsigned option_count;
   infile >> strength >> option_count;
-  std::vector<unsigned> values(option_count);
+  std::vector<unsigned> value_counts(option_count);
   for (unsigned i = 0; i < option_count; ++i) {
-    infile >> values[i];
+    infile >> value_counts[i];
   }
-  options.initialize(values);
+  initialize(value_counts);
 #ifndef NDEBUG
   options.print();
 #endif

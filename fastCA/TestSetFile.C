@@ -13,10 +13,10 @@ TestSetFile::TestSetFile(const string &filename) {
   ifstream infile(filename.data());
   infile >> this->var_count;
   string line;
+  regex ws_res(",");
   while (getline(infile, line)) {
     if (line.size() == 0)
       continue;
-    regex ws_res(",");
     vector<string> v(
         sregex_token_iterator(line.begin(), line.end(), ws_res, -1),
         sregex_token_iterator());
@@ -102,8 +102,8 @@ bool TestSetFile::IsThisRow(unsigned inSetIndex,
   return true;
 }
 
-void TestSetFile::UpdateTestSetbyACTS(vector<vector<unsigned> > &array) {
-  vector<vector<int> > validTestSet; // fastCA format
+void TestSetFile::UpdateTestSetbyACTS(vector<vector<unsigned>> &array) {
+  vector<vector<int>> validTestSet; // fastCA format
   unsigned scanArray = 0;
 
   for (unsigned i = 0; i < testSet.size() && scanArray < testSet.size(); i++) {

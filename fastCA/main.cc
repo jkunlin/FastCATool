@@ -6,7 +6,7 @@
 #include "LocalSearch.h"
 #include "SpecificationFile.h"
 #include "TestSetFile.H"
-
+#include "io.h"
 using namespace std;
 
 int main(int argc, char const *argv[]) {
@@ -59,11 +59,15 @@ int main(int argc, char const *argv[]) {
     threadsNum = atoi(parameters_map["-p"].c_str());
   }
 
-  SpecificationFile specificationFile(modelFile);
-  ConstraintFile constraintFile(constrFile);
-  TestSetFile testSetFile(testFile);
+  SpecificationFile specificationFile;
+  ConstraintFile constraintFile;
+  TestSetFile testSetFile;
+  IO io;
+  io.readInstance(modelFile, specificationFile, constraintFile, testSetFile);
+  specificationFile.setStrenth(3);
+
   testSetFile.convert2acts(specificationFile);
-  localSearch(specificationFile, constrFile, maxTime, seed, threadsNum,
+  localSearch(specificationFile, constraintFile, maxTime, seed, threadsNum,
               testSetFile);
   return 0;
 }
