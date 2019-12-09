@@ -44,7 +44,7 @@ ConstraintFile::ConstraintFile(const string &filename) {
       clause.append(InputTerm(sign == '-', symbol));
       valid_clause.push_back(Valid::Literal(sign == '-', symbol));
     }
-    formula.addClause(std::move(valid_clause));
+    formula.push_back(valid_clause);
   }
   fileInputStream.close();
 }

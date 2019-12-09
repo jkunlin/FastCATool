@@ -49,82 +49,7 @@ public:
 
 typedef std::vector<Literal> Clause;
 
-// class Clause {
-// public:
-//   Clause() {}
-//   Clause(Clause &&c) : clause(std::move(c.clause)) {}
-//   Clause(const Clause &c) : clause(c.clause) {}
-//   void addLiteral(const Literal &l) { clause.push_back(l); }
-//   const Literal &operator[](std::vector<Literal>::size_type i) const {
-//     return clause[i];
-//   }
-//   Literal &operator[](std::vector<Literal>::size_type i) { return clause[i];
-//   } void clear() { clause.clear(); } void
-//   resize(std::vector<Literal>::size_type size) { clause.resize(size); }
-//   std::vector<Literal>::size_type size() { return clause.size(); }
-//   std::vector<Literal>::size_type size() const { return clause.size(); }
-//   bool empty() const { return clause.empty(); }
-//   bool empty() { return clause.empty(); }
-//   std::vector<Literal>::const_iterator begin() const { return clause.begin();
-//   } std::vector<Literal>::iterator begin() { return clause.begin(); }
-//   std::vector<Literal>::const_iterator end() const { return clause.end(); }
-//   std::vector<Literal>::iterator end() { return clause.end(); }
-// #ifndef NVISIBLE
-//   void print() const {
-//     for (const Literal &l : clause) {
-//       l.print();
-//       std::cout << ",";
-//     }
-//     std::cout << '\b' << ' ';
-//   }
-// #endif
-// private:
-//   std::vector<Literal> clause;
-// };
-
-class Formula {
-public:
-  void addClause(Clause &&c) {
-    if (c.empty()) {
-      return;
-    }
-    clauses.push_back(std::move(c));
-  }
-  void addClause(const Clause &c) {
-    if (c.empty()) {
-      return;
-    }
-    clauses.push_back(c);
-  }
-  std::vector<Clause>::size_type size() { return clauses.size(); }
-  const Clause &operator[](std::vector<Clause>::size_type index) const {
-    return clauses[index];
-  }
-  Clause &operator[](std::vector<Clause>::size_type index) {
-    return clauses[index];
-  }
-  void pop_back() { clauses.pop_back(); }
-  std::vector<Clause>::const_iterator begin() const { return clauses.begin(); }
-  std::vector<Clause>::const_iterator end() const { return clauses.end(); }
-
-#ifndef NVISIBLE
-  void print() const {
-    std::cout << "printing formula" << std::endl;
-    for (const Clause &c : clauses) {
-      std::string sep = "";
-      for (const Literal &l : c) {
-        std::cout << sep;
-        l.print();
-        sep = ",";
-      }
-      std::cout << '\t';
-    }
-    std::cout << '\b' << ' ' << std::endl;
-  }
-#endif
-private:
-  std::vector<Clause> clauses;
-};
+typedef std::vector<Clause> Formula;
 
 class Validater {
 private:
@@ -188,11 +113,11 @@ public:
     for (const Literal &l : c) {
       option_clasue[options.option(l.variable())].push_back(index);
     }
-    formula.addClause(std::move(c));
+    formula.push_back(c);
   }
 
   void addClause(const Clause &c) {
-    formula.addClause(c);
+    formula.push_back(c);
     Formula_size_type index = formula.size() - 1;
     compact_clause(formula[index]);
     if (formula[index].empty()) {

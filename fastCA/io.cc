@@ -152,53 +152,6 @@ Valid::Literal IO::getLiteral(const std::string &term) {
   return lit;
 }
 
-// void IO::readConstraint(ConstraintFile &constraint) {
-//   std::string line;
-//   std::string term;
-//
-//   size_t clause_size = 0;
-//   auto cur_pos = infile.tellg();
-//   while (getline(infile, line)) {
-//     if (line.find("[") != line.npos) {
-//       break;
-//     }
-//     clause_size++;
-//   }
-//   constraint.initClause(clause_size);
-//
-//   infile.seekg(cur_pos);
-//   infile.clear(); // reset state bit if EOF
-//
-//   auto lead_pos = infile.tellg();
-//   Valid::Clause clause;
-//   size_t clause_index = 0;
-//   while (getline(infile, line)) {
-//     clause.clear();
-//     if (line.find("[") != line.npos) {
-//       infile.seekg(lead_pos);
-//       return;
-//     }
-//     lead_pos = infile.tellg();
-//     if (line.empty() || (line[0] == '-' && line[1] == '-')) {
-//       continue;
-//     }
-//     std::size_t prev = 0, pos;
-//     while ((pos = line.find_first_of("||", prev)) != std::string::npos) {
-//       if (pos > prev) {
-//         term = line.substr(prev, pos - prev);
-//         strip(term);
-//         clause.addLiteral(getLiteral(term));
-//       }
-//       prev = pos + 1;
-//     }
-//     if (prev < line.length()) {
-//       term = line.substr(prev, std::string::npos);
-//       strip(term);
-//       clause.addLiteral(getLiteral(term));
-//     }
-//     constraint.addClause(clause_index++, clause);
-//   }
-// }
 void IO::readConstraint(ConstraintFile &constraint) {
   std::string line;
   std::string term;
@@ -230,7 +183,7 @@ void IO::readConstraint(ConstraintFile &constraint) {
       strip(term);
       clause.push_back(getLiteral(term));
     }
-    formula.addClause(clause);
+    formula.push_back(clause);
   }
   constraint.initClause(formula);
 }
