@@ -1,8 +1,11 @@
 #include "CoveringArray.h"
+#include "/home/jkunlin/cit/FastCATool/fastCA/Options.h"
+#include "io.h"
 CoveringArray::CoveringArray(const SpecificationFile &specificationFile,
                              const ConstraintFile &constraintFile,
                              TestSetFile &testSet, unsigned long long maxT,
-                             int seed, int threadsNum, int minScoreTaskSize, int minReplaceTaskSize)
+                             int seed, int threadsNum, int minScoreTaskSize,
+                             int minReplaceTaskSize)
     : validater(specificationFile), satSolver(constraintFile.isEmpty()),
       specificationFile(specificationFile), testSet(testSet),
       coverage(specificationFile), entryTabu(4), maxTime(maxT) {
@@ -102,7 +105,7 @@ CoveringArray::~CoveringArray() {
       delete threadptr;
     }
 
-    for(auto taskReadyPtr : taskReadyPtrs){
+    for (auto taskReadyPtr : taskReadyPtrs) {
       delete taskReadyPtr;
     }
   }
@@ -318,8 +321,8 @@ void CoveringArray::optimize() {
     }
 
     size_t tasksNum = uncoveredTuples.size() * array.size();
-    int neededThreadsNum =
-        std::min(threadsNum, (int)std::ceil((double)tasksNum / minScoreTaskSize));
+    int neededThreadsNum = std::min(
+        threadsNum, (int)std::ceil((double)tasksNum / minScoreTaskSize));
     if (threadsNum == 1 || neededThreadsNum < 2) {
       tabugw();
     } else {
@@ -344,20 +347,37 @@ void CoveringArray::optimize() {
   }
   std::cout << "total steps: " << step << std::endl;
 
-  //#ifndef NDEBUG
-  std::cerr << "********Debuging CoveringArray::optimize*********" << std::endl;
-  std::cerr << "printing bestArray..." << std::endl;
-  for (unsigned i = 0; i < bestArray.size(); ++i) {
-    std::cerr << i << "th  ";
-    for (auto x : bestArray[i]) {
-      std::cerr << ' ' << x;
+  printBestArray();
+}
+
+void CoveringArray::printBestArray() const {
+  const Options &options = specificationFile.getOptions();
+  std::cout << "printing solution..." << std::endl;
+
+  std::string sep;
+  std::cout << "Parameters:" << std::endl;
+  for (int opt = 0; opt < options.size(); opt++) {
+    sep = "";
+    std::cout << io.getVar(opt) << ": [";
+    for (int symbol = options.firstSymbol(opt);
+         symbol <= options.lastSymbol(opt); symbol++) {
+      std::cout << sep << io.getValue(opt, symbol - options.firstSymbol(opt));
+      sep = ", ";
     }
-    std::cerr << std::endl;
+    std::cout << "]" << std::endl;
   }
-  std::cerr << "total size : " << bestArray.size() << std::endl;
-  std::cerr << "********End of Debuing CoveringArray::optimize********"
-            << std::endl;
-  //#endif
+  std::cout << std::endl;
+
+  std::cout << "Configurations:" << std::endl;
+  for (unsigned i = 0; i < bestArray.size(); ++i) {
+    std::cout << i + 1 << "th  ";
+    for (int j = 0; j < bestArray[i].size(); j++) {
+      std::cout << ' '
+                << io.getValue(j, bestArray[i][j] - options.firstSymbol(j));
+    }
+    std::cout << std::endl;
+  }
+  std::cout << "total size : " << bestArray.size() << std::endl;
 }
 
 void CoveringArray::tabugw() {
@@ -1091,19 +1111,20 @@ void CoveringArray::replace(const unsigned var, const unsigned lineIndex) {
   line[varOption] = var;
 }
 
- void CoveringArray::replaceParallel(const unsigned var, const unsigned lineIndex) {
+void CoveringArray::replaceParallel(const unsigned var,
+                                    const unsigned lineIndex) {
   std::vector<unsigned> &line = array[lineIndex];
   const Options &options = specificationFile.getOptions();
   const unsigned strength = specificationFile.getStrenth();
   const unsigned varOption = options.option(var);
 
   size_t taskNum = 0;
-  taskNum = pt.nCr(line.size() - 1, strength-1);
+  taskNum = pt.nCr(line.size() - 1, strength - 1);
 
-//  std::cout << taskNum << std::endl;
-  int neededThreadsNum =
-           std::min(threadsNum, (int)std::ceil((double)taskNum / minReplaceTaskSize));
-  if (threadsNum == 1 || neededThreadsNum < 2){
+  //  std::cout << taskNum << std::endl;
+  int neededThreadsNum = std::min(
+      threadsNum, (int)std::ceil((double)taskNum / minReplaceTaskSize));
+  if (threadsNum == 1 || neededThreadsNum < 2) {
     replace(var, lineIndex);
     return;
   }
@@ -1132,7 +1153,8 @@ void CoveringArray::replace(const unsigned var, const unsigned lineIndex) {
 
     tasks[t] = std::packaged_task<void()>(
         [&var, &lineIndex, &options, &strength, &line, columns, count, this] {
-          this->tabugwReplaceSubTask(var, lineIndex, options, strength, line, columns, count);
+          this->tabugwReplaceSubTask(var, lineIndex, options, strength, line,
+                                     columns, count);
         });
     taskReadyPtrs[t]->store(true);
 
@@ -1154,8 +1176,8 @@ void CoveringArray::replace(const unsigned var, const unsigned lineIndex) {
     }
   }
 
- std::swap(line[line.size() - 1], line[varOption]);
- line[varOption] = var;
+  std::swap(line[line.size() - 1], line[varOption]);
+  line[varOption] = var;
 }
 
 void CoveringArray::tabugwReplaceSubTask(

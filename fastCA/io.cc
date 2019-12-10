@@ -8,6 +8,8 @@
 #include <utility>
 #include <vector>
 
+IO io;
+
 void strip(std::string &str) {
   if (str.empty()) {
     return;

@@ -1,4 +1,7 @@
-#include "/home/jkunlin/cit/FastCATool/fastCA/Valid_check.h"
+#ifndef IO_H
+
+#define IO_H
+
 #include "ConstraintFile.H"
 #include "SpecificationFile.h"
 #include "TestSetFile.H"
@@ -19,6 +22,13 @@ public:
   void readInstance(const std::string &filename,
                     SpecificationFile &specification,
                     ConstraintFile &constraint, TestSetFile &testSet);
+
+  const std::string &getValue(size_t varIndex, size_t valueIndex) const {
+    return values[varIndex][valueIndex];
+  }
+  const std::string &getVar(size_t varIndex) const {
+    return varNames[varIndex];
+  }
 
 protected:
   void readSystemName();
@@ -42,3 +52,6 @@ protected:
 
   std::vector<unsigned> cumulativeValueCounts;
 };
+extern IO io;
+
+#endif /* end of include guard: IO_H */

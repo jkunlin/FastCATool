@@ -27,9 +27,13 @@ int main(int argc, char const *argv[]) {
 
   string testFile("");
 
-  map<string, string> parameters_map = {
-      {"-f", ""}, {"-c", ""}, {"-t", "0"}, {"-s", "0"},
-      {"-p", "1"}, {"-minScoreTaskSize", "100"}, {"-minReplaceTaskSize", "120"}};
+  map<string, string> parameters_map = {{"-f", ""},
+                                        {"-c", ""},
+                                        {"-t", "0"},
+                                        {"-s", "0"},
+                                        {"-p", "1"},
+                                        {"-minScoreTaskSize", "100"},
+                                        {"-minReplaceTaskSize", "120"}};
 
   vector<string> parameterVec;
   for (int i = 1; i < argc - 1; i += 2) {
@@ -78,13 +82,12 @@ int main(int argc, char const *argv[]) {
   SpecificationFile specificationFile;
   ConstraintFile constraintFile;
   TestSetFile testSetFile;
-  IO io;
   io.readInstance(modelFile, specificationFile, constraintFile, testSetFile);
   specificationFile.setStrenth(3);
 
   testSetFile.convert2acts(specificationFile);
-  localSearch(specificationFile, constraintFile, testSetFile, maxTime, seed, threadsNum,
-              minScoreTaskSize, minReplaceTaskSize);
+  localSearch(specificationFile, constraintFile, testSetFile, maxTime, seed,
+              threadsNum, minScoreTaskSize, minReplaceTaskSize);
 
   return 0;
 }

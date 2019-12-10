@@ -31,7 +31,8 @@ class CoveringArray {
 public:
   CoveringArray(const SpecificationFile &specificationFile,
                 const ConstraintFile &constraintFile, TestSetFile &testSet,
-                unsigned long long maxT, int seed, int threadsNum, int minScoreTaskSize, int minReplaceTaskSize);
+                unsigned long long maxT, int seed, int threadsNum,
+                int minScoreTaskSize, int minReplaceTaskSize);
   ~CoveringArray();
   void actsInitialize(const std::string file_name);
   void optimize();
@@ -82,7 +83,7 @@ private:
   long long multiVarRow(const std::vector<unsigned> &sortedMultiVars,
                         const unsigned lineIndex, const bool change = false);
   long long multiVarScoreOfRow(const std::vector<unsigned> &sortedMultiVars,
-                                const unsigned lineIndex);
+                               const unsigned lineIndex);
   void multiVarReplace(const std::vector<unsigned> &sortedMultiVars,
                        const unsigned lineIndex);
 
@@ -94,6 +95,7 @@ private:
                             const Options &options, const unsigned &strength,
                             std::vector<unsigned> &line,
                             std::vector<unsigned> columns, size_t count);
+  void printBestArray() const;
   void tmpPrint();
   bool verify(const std::vector<std::vector<unsigned>> &resultArray);
   bool checkCovered(unsigned encode);

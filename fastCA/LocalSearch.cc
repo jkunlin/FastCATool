@@ -6,9 +6,9 @@
 #include <unistd.h>
 
 void localSearch(const SpecificationFile &specificationFile,
-                 const ConstraintFile &constraintFile,
-                 TestSetFile &testSetFile, const unsigned long long maxTime, int seed,
-                 int threadsNum, int minScoreTaskSize, int minReplaceTaskSize) {
+                 const ConstraintFile &constraintFile, TestSetFile &testSetFile,
+                 const unsigned long long maxTime, int seed, int threadsNum,
+                 int minScoreTaskSize, int minReplaceTaskSize) {
   CoveringArray c(specificationFile, constraintFile, testSetFile, maxTime, seed,
                   threadsNum, minScoreTaskSize, minReplaceTaskSize);
   //	c.greedyConstraintInitialize2();
