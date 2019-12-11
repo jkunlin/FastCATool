@@ -17,7 +17,6 @@ class TestSetFile {
 public:
   TestSetFile(const std::string &filename);
   TestSetFile();
-  unsigned int getTestSetCount();
 
   void addTest(const std::vector<int> &test) { testSet.push_back(test); }
 
@@ -25,7 +24,9 @@ public:
 
   void convert2acts(const SpecificationFile &specificationFile);
   bool isExistedOption(const unsigned lineIndex, const unsigned option) const;
-  int getSetSize() { return testSet.size(); };
+  bool isExistedRow(const unsigned lineIndex) const;
+
+  unsigned int getSetSize() { return testSet.size(); };
   bool IsThisRow(unsigned inSetIndex, std::vector<unsigned> &rowInResult);
   void UpdateTestSetbyACTS(std::vector<std::vector<unsigned>> &array);
 

@@ -1,5 +1,5 @@
 #include "CoveringArray.h"
-#include "/home/jkunlin/cit/FastCATool/fastCA/Options.h"
+#include "Options.h"
 #include "io.h"
 CoveringArray::CoveringArray(const SpecificationFile &specificationFile,
                              const ConstraintFile &constraintFile,
@@ -234,13 +234,58 @@ void CoveringArray::replaceRow(const unsigned lineIndex,
   validater.change_row(lineIndex, ranLine);
 }
 
+void CoveringArray::replaceRowforTuple(const unsigned encode) {
+  unsigned lineIndex =
+      mersenne.next(array.size() - testSet.getSetSize()) + testSet.getSetSize();
+
+  std::vector<unsigned> &ranLine = array[lineIndex];
+  const unsigned strength = specificationFile.getStrenth();
+  std::vector<unsigned> tmpTuple(strength);
+  // uncover the tuples
+  for (std::vector<unsigned> columns = combinadic.begin(strength);
+       columns[strength - 1] < ranLine.size(); combinadic.next(columns)) {
+    for (unsigned i = 0; i < strength; ++i) {
+      tmpTuple[i] = ranLine[columns[i]];
+    }
+    uncover(coverage.encode(columns, tmpTuple), lineIndex);
+  }
+
+  const std::vector<unsigned> &target_tuple = coverage.getTuple(encode);
+  const std::vector<unsigned> &target_columns = coverage.getColumns(encode);
+  for (auto &line : bestArray) {
+    bool match = true;
+    for (size_t i = 0; i < target_columns.size(); ++i) {
+      if (line[target_columns[i]] != target_tuple[i]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) {
+      ranLine = line;
+      break;
+    }
+  }
+
+  // cover the tuples
+  for (std::vector<unsigned> columns = combinadic.begin(strength);
+       columns[strength - 1] < ranLine.size(); combinadic.next(columns)) {
+    for (unsigned i = 0; i < strength; ++i) {
+      tmpTuple[i] = ranLine[columns[i]];
+    }
+    cover(coverage.encode(columns, tmpTuple), lineIndex);
+  }
+  entryTabu.initialize(
+      Entry(array.size(), specificationFile.getOptions().size()));
+  validater.change_row(lineIndex, ranLine);
+}
+
 void CoveringArray::removeUselessRows() {
   const Options &options = specificationFile.getOptions();
   const unsigned strength = specificationFile.getStrenth();
   std::vector<unsigned> tmpTuple(strength);
 
   for (size_t lineIndex = 0; lineIndex < array.size();) {
-    if (oneCoveredTuples.oneCoveredCount(lineIndex) == 0) {
+    if (oneCoveredTuples.oneCoveredCount(lineIndex) == 0 &&!testSet.isExistedRow(lineIndex)) {
       const std::vector<unsigned> &line = array[lineIndex];
       for (std::vector<unsigned> columns = combinadic.begin(strength);
            columns[strength - 1] < options.size(); combinadic.next(columns)) {
@@ -274,7 +319,9 @@ void CoveringArray::removeOneRowRandom() {
   const Options &options = specificationFile.getOptions();
   const unsigned strength = specificationFile.getStrenth();
 
-  unsigned rowToremoveIndex = mersenne.next(array.size());
+  unsigned rowToremoveIndex =
+      mersenne.next(array.size() - testSet.getSetSize()) + testSet.getSetSize();
+
   std::vector<unsigned> tmpTuple(strength);
   for (std::vector<unsigned> columns = combinadic.begin(strength);
        columns[strength - 1] < options.size(); combinadic.next(columns)) {
@@ -410,6 +457,11 @@ void CoveringArray::tabugw() {
       if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
         continue;
       }
+      // given test set
+      if (testSet.isExistedOption(lineIndex, diffOption)) {
+        continue;
+      }
+
       // my check
       if (!validater.valida_change(lineIndex, diffOption, line[diffOption],
                                    diffVar)) {
@@ -445,7 +497,7 @@ void CoveringArray::tabugw() {
   }
 
   if (mersenne.nextClosed() < 0.001) {
-    replaceRow(mersenne.next(array.size()), uncoveredTuples.encode(base));
+    replaceRowforTuple(uncoveredTuples.encode(base));
     return;
   }
   if (firstBestRows.size() != 0) {
@@ -476,18 +528,24 @@ void CoveringArray::tabugw() {
     if (changedVars.size() == 0) {
       continue;
     }
-    // Tabu
+    // Tabu or given test set
     bool isTabu = false;
+    bool isExist = false;
     for (auto v : changedVars) {
       unsigned diffOption = specificationFile.getOptions().option(v);
       if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
         isTabu = true;
         break;
       }
+      if (testSet.isExistedOption(lineIndex, diffOption)) {
+        isExist = true;
+        break;
+      }
     }
-    if (isTabu) {
+    if (isTabu || isExist) {
       continue;
     }
+
     // check constraint, before tmpScore or after it?
     bool need_to_check = false;
     for (auto v : changedVars) {
@@ -537,7 +595,7 @@ void CoveringArray::tabugw() {
     }
     return;
   }
-  replaceRow(mersenne.next(array.size()), tupleEncode);
+  replaceRowforTuple(tupleEncode);
 }
 
 void CoveringArray::tabugwParallel() {
@@ -626,7 +684,7 @@ void CoveringArray::tabugwParallel() {
   }
 
   if (mersenne.nextClosed() < 0.001) {
-    replaceRow(mersenne.next(array.size()), uncoveredTuples.encode(base));
+    replaceRowforTuple(uncoveredTuples.encode(base));
     return;
   }
   if (firstBestRows.size() != 0) {
@@ -657,16 +715,21 @@ void CoveringArray::tabugwParallel() {
     if (changedVars.size() == 0) {
       continue;
     }
-    // Tabu
+    // Tabu or given test set
     bool isTabu = false;
+    bool isExist = false;
     for (auto v : changedVars) {
       unsigned diffOption = specificationFile.getOptions().option(v);
       if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
         isTabu = true;
         break;
       }
+      if (testSet.isExistedOption(lineIndex, diffOption)) {
+        isExist = true;
+        break;
+      }
     }
-    if (isTabu) {
+    if (isTabu || isExist) {
       continue;
     }
     // check constraint, before tmpScore or after it?
@@ -718,7 +781,7 @@ void CoveringArray::tabugwParallel() {
     }
     return;
   }
-  replaceRow(mersenne.next(array.size()), tupleEncode);
+  replaceRowforTuple(tupleEncode);
 }
 
 void CoveringArray::tabugwSubTask(const size_t start_index,
@@ -758,6 +821,7 @@ void CoveringArray::tabugwSubTask(const size_t start_index,
     if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
       continue;
     }
+    // given test set
     if (testSet.isExistedOption(lineIndex, diffOption)) {
       continue;
     }

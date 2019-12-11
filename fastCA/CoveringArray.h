@@ -74,6 +74,7 @@ private:
   void uncover_with_lock(const unsigned encode, const unsigned oldLineIndex);
   void updateTestSet();
   void replaceRow(const unsigned lineIndex, const unsigned encode);
+  void replaceRowforTuple(const unsigned encode);
   void removeUselessRows();
   void removeOneRowRandom();
   long long varScoreOfRow(const unsigned var, const unsigned lineIndex);

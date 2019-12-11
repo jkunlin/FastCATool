@@ -52,7 +52,6 @@ void TestSetFile::convert2acts(const SpecificationFile &specificationFile) {
   }
 }
 
-unsigned int TestSetFile::getTestSetCount() { return this->testSet.size(); }
 
 string TestSetFile::printInActsFormat() const {
   ostringstream acts_infile;
@@ -95,6 +94,14 @@ bool TestSetFile::isExistedOption(unsigned lineIndex, unsigned option) const {
     return false;
   return true;
 }
+
+bool TestSetFile::isExistedRow(unsigned lineIndex) const {
+
+  if (lineIndex > testSet.size() - 1)
+    return false;
+  return true;
+}
+
 
 bool TestSetFile::IsThisRow(unsigned inSetIndex,
                             vector<unsigned> &rowInResult) {
