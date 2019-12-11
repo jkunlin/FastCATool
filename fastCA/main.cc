@@ -21,17 +21,18 @@ int main(int argc, char const *argv[]) {
   string constrFile;
   unsigned long long maxTime;
   int seed;
+  int coverageStrength;
   int threadsNum;
   int minScoreTaskSize;
   int minReplaceTaskSize;
 
   string testFile("");
 
-  map<string, string> parameters_map = {{"-f", ""},
-                                        {"-c", ""},
-                                        {"-t", "0"},
-                                        {"-s", "0"},
-                                        {"-p", "1"},
+  map<string, string> parameters_map = {{"-file", ""},
+                                        {"-strength", "2"},
+                                        {"-time", "0"},
+                                        {"-seed", "1"},
+                                        {"-threads", "1"},
                                         {"-minScoreTaskSize", "100"},
                                         {"-minReplaceTaskSize", "120"}};
 
@@ -45,26 +46,30 @@ int main(int argc, char const *argv[]) {
     parameters_map[paraName] = paraValue;
   }
 
-  if (parameters_map["-f"] == "") {
+  if (parameters_map["-file"] == "") {
     return 1;
   } else {
-    modelFile = parameters_map["-f"];
+    modelFile = parameters_map["-file"];
   }
 
-  constrFile = parameters_map["-c"];
-
-  if (atoi(parameters_map["-t"].c_str()) < 0) {
+  if (atoi(parameters_map["-strength"].c_str()) < 2) {
     return 1;
   } else {
-    maxTime = atoi(parameters_map["-t"].c_str());
+    coverageStrength = atoi(parameters_map["-strength"].c_str());
   }
 
-  seed = atoi(parameters_map["-s"].c_str());
-
-  if (atoi(parameters_map["-p"].c_str()) < 1) {
+  if (atoi(parameters_map["-time"].c_str()) < 0) {
     return 1;
   } else {
-    threadsNum = atoi(parameters_map["-p"].c_str());
+    maxTime = atoi(parameters_map["-time"].c_str());
+  }
+
+  seed = atoi(parameters_map["-seed"].c_str());
+
+  if (atoi(parameters_map["-threads"].c_str()) < 1) {
+    return 1;
+  } else {
+    threadsNum = atoi(parameters_map["-threads"].c_str());
   }
 
   if (atoi(parameters_map["-minScoreTaskSize"].c_str()) < 1) {
@@ -83,7 +88,7 @@ int main(int argc, char const *argv[]) {
   ConstraintFile constraintFile;
   TestSetFile testSetFile;
   io.readInstance(modelFile, specificationFile, constraintFile, testSetFile);
-  specificationFile.setStrenth(3);
+  specificationFile.setStrenth(coverageStrength);
 
   testSetFile.convert2acts(specificationFile);
   localSearch(specificationFile, constraintFile, testSetFile, maxTime, seed,
