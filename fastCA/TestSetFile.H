@@ -29,6 +29,8 @@ public:
   bool IsThisRow(unsigned inSetIndex, std::vector<unsigned> &rowInResult);
   void UpdateTestSetbyACTS(std::vector<std::vector<unsigned>> &array);
 
+  void setVarCount(const size_t sz) { var_count = sz; }
+
   std::string printInActsFormat() const;
 };
 

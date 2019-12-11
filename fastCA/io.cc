@@ -199,6 +199,7 @@ unsigned IO::getFastcaValue(std::string varName, std::string value) {
 }
 
 void IO::readTestSet(TestSetFile &testSet) {
+  testSet.setVarCount(varSize());
   std::string line;
   std::istringstream is;
 
@@ -211,7 +212,7 @@ void IO::readTestSet(TestSetFile &testSet) {
     std::string name;
     is.clear();
     is.str(line);
-    while (getline(is, name)) {
+    while (getline(is, name, ',')) {
       strip(name);
       names.push_back(name);
     }
@@ -240,15 +241,16 @@ void IO::readTestSet(TestSetFile &testSet) {
     std::string value;
     is.clear();
     is.str(line);
-    for (auto &varName : names) {
-      getline(is, value);
-      strip(value);
-    }
     for (size_t i = 0; i < names.size(); i++) {
       getline(is, value, ',');
       strip(value);
+      if (value == "*") {
+        test[pos[i]] = -1;
+        continue;
+      }
       auto &varName = names[i];
       test[pos[i]] = getFastcaValue(varName, value);
+      std::cout << pos[i] << '\t' << test[pos[i]] << std::endl;
     }
     testSet.addTest(test);
   }

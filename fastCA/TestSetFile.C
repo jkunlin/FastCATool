@@ -70,7 +70,11 @@ string TestSetFile::printInActsFormat() const {
     if (actsTestSet[i].size() == 0)
       continue;
 
-    acts_infile << actsTestSet[i][0];
+    if (actsTestSet[i][0] == -1) {
+      acts_infile << "*";
+    } else {
+      acts_infile << actsTestSet[i][0];
+    }
     for (unsigned int j = 1; j < actsTestSet[i].size(); j++) {
       int val = actsTestSet[i][j];
       if (val == -1)
