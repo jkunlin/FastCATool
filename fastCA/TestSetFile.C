@@ -96,8 +96,7 @@ bool TestSetFile::isExistedOption(unsigned lineIndex, unsigned option) const {
 }
 
 bool TestSetFile::isExistedRow(unsigned lineIndex) const {
-
-  if (lineIndex > testSet.size() - 1)
+  if (testSet.empty() || lineIndex > testSet.size() - 1)
     return false;
   return true;
 }
