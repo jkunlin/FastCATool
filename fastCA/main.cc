@@ -28,13 +28,13 @@ int main(int argc, char const *argv[]) {
 
   string testFile("");
 
-  map<string, string> parameters_map = {{"-file", ""},
-                                        {"-strength", "2"},
-                                        {"-time", "0"},
-                                        {"-seed", "1"},
-                                        {"-threads", "1"},
-                                        {"-minScoreTaskSize", "100"},
-                                        {"-minReplaceTaskSize", "120"}};
+  map<string, string> parameters_map = {{"--file", ""},
+                                        {"--strength", "2"},
+                                        {"--time", "0"},
+                                        {"--seed", "1"},
+                                        {"--threads", "1"},
+                                        {"--minScoreTaskSize", "100"},
+                                        {"--minReplaceTaskSize", "120"}};
 
   vector<string> parameterVec;
   for (int i = 1; i < argc - 1; i += 2) {
@@ -46,42 +46,42 @@ int main(int argc, char const *argv[]) {
     parameters_map[paraName] = paraValue;
   }
 
-  if (parameters_map["-file"] == "") {
+  if (parameters_map["--file"] == "") {
     return 1;
   } else {
-    modelFile = parameters_map["-file"];
+    modelFile = parameters_map["--file"];
   }
 
-  if (atoi(parameters_map["-strength"].c_str()) < 2) {
+  if (atoi(parameters_map["--strength"].c_str()) < 2) {
     return 1;
   } else {
-    coverageStrength = atoi(parameters_map["-strength"].c_str());
+    coverageStrength = atoi(parameters_map["--strength"].c_str());
   }
 
-  if (atoi(parameters_map["-time"].c_str()) < 0) {
+  if (atoi(parameters_map["--time"].c_str()) < 0) {
     return 1;
   } else {
-    maxTime = atoi(parameters_map["-time"].c_str());
+    maxTime = atoi(parameters_map["--time"].c_str());
   }
 
-  seed = atoi(parameters_map["-seed"].c_str());
+  seed = atoi(parameters_map["--seed"].c_str());
 
-  if (atoi(parameters_map["-threads"].c_str()) < 1) {
+  if (atoi(parameters_map["--threads"].c_str()) < 1) {
     return 1;
   } else {
-    threadsNum = atoi(parameters_map["-threads"].c_str());
+    threadsNum = atoi(parameters_map["--threads"].c_str());
   }
 
-  if (atoi(parameters_map["-minScoreTaskSize"].c_str()) < 1) {
+  if (atoi(parameters_map["--minScoreTaskSize"].c_str()) < 1) {
     return 1;
   } else {
-    minScoreTaskSize = atoi(parameters_map["-minScoreTaskSize"].c_str());
+    minScoreTaskSize = atoi(parameters_map["--minScoreTaskSize"].c_str());
   }
 
-  if (atoi(parameters_map["-minReplaceTaskSize"].c_str()) < 1) {
+  if (atoi(parameters_map["--minReplaceTaskSize"].c_str()) < 1) {
     return 1;
   } else {
-    minReplaceTaskSize = atoi(parameters_map["-minReplaceTaskSize"].c_str());
+    minReplaceTaskSize = atoi(parameters_map["--minReplaceTaskSize"].c_str());
   }
 
   SpecificationFile specificationFile;
