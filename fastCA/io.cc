@@ -250,7 +250,7 @@ void IO::readTestSet(TestSetFile &testSet) {
       }
       auto &varName = names[i];
       test[pos[i]] = getFastcaValue(varName, value);
-      std::cout << pos[i] << '\t' << test[pos[i]] << std::endl;
+//      std::cout << pos[i] << '\t' << test[pos[i]] << std::endl;
     }
     testSet.addTest(test);
   }

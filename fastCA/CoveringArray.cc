@@ -172,10 +172,11 @@ void CoveringArray::actsInitialize(const std::string file_name) {
   gettimeofday(&end, NULL);
   double start_sec = start.tv_sec + start.tv_usec / 1000000.0;
   double end_sec = end.tv_sec + end.tv_usec / 1000000.0;
-  std::cout << "actsInitialize: " << end_sec - start_sec << std::endl;
+//  std::cout << "actsInitialize: " << end_sec - start_sec << std::endl;
 
   entryTabu.initialize(Entry(array.size(), array.size()));
   validater.initialize(array);
+  std::cout << "time    size  step" << std::endl;
   tmpPrint();
   oneCoveredTuples.initialize(specificationFile, array.size());
   oneCoveredTuples.pushOneCoveredTuple(coverage, coverByLineIndex);

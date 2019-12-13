@@ -22,8 +22,8 @@ void ActsSolver::solve(const SpecificationFile &specificationFile,
           " -Dmode=extend -jar acts_cmd_2.92.jar ";
   }
   cmd += std::string("cmd ") + acts_inputfile_name + " " + res_file_name;
-  std::cout << "input acts filename=" << acts_inputfile_name << std::endl;
-  std::cout << "cmd=" << cmd << std::endl;
+//  std::cout << "input acts filename=" << acts_inputfile_name << std::endl;
+//  std::cout << "cmd=" << cmd << std::endl;
   std::string rm_cmd = std::string("rm ") + acts_inputfile_name;
   if (system(cmd.c_str()) != 0 || system(rm_cmd.c_str()) != 0) {
     std::cout << "system() wrong" << std::endl;
