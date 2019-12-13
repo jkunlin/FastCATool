@@ -4,21 +4,22 @@
 #include "ActsSolver.h"
 #include "CoveringArray.h"
 #include <unistd.h>
+#include <random>
 
 void localSearch(const SpecificationFile &specificationFile,
                  const ConstraintFile &constraintFile, TestSetFile &testSetFile,
                  const unsigned long long maxTime, int seed, int threadsNum,
-                 int minScoreTaskSize, int minReplaceTaskSize) {
+                 int minScoreTaskSize, int minReplaceTaskSize, std::string outfile) {
   CoveringArray c(specificationFile, constraintFile, testSetFile, maxTime, seed,
-                  threadsNum, minScoreTaskSize, minReplaceTaskSize);
+                  threadsNum, minScoreTaskSize, minReplaceTaskSize, outfile);
   //	c.greedyConstraintInitialize2();
   ActsSolver ActsSolver;
-  char filename[L_tmpnam];
-  if (!tmpnam(filename)) {
-    std::cerr << "tmp file name error" << std::endl;
-    abort();
-  }
-  std::string acts_res_filename = filename;
+//  char filename[L_tmpnam];
+//  if (!mktemp(filename)) {
+//    std::cerr << "tmp file name error" << std::endl;
+//    abort();
+//
+  std::string acts_res_filename = "acts_infile_";
   acts_res_filename += std::to_string(getpid());
   ActsSolver.solve(specificationFile, constraintFile, acts_res_filename,
                    testSetFile);

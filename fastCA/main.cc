@@ -25,6 +25,7 @@ int main(int argc, char const *argv[]) {
   int threadsNum;
   int minScoreTaskSize;
   int minReplaceTaskSize;
+  string outfile;
 
   string testFile("");
 
@@ -34,7 +35,8 @@ int main(int argc, char const *argv[]) {
                                         {"--seed", "1"},
                                         {"--threads", "1"},
                                         {"--minScoreTaskSize", "100"},
-                                        {"--minReplaceTaskSize", "120"}};
+                                        {"--minReplaceTaskSize", "120"},
+                                        {"--outfile", ""}};
 
   vector<string> parameterVec;
   for (int i = 1; i < argc - 1; i += 2) {
@@ -84,6 +86,8 @@ int main(int argc, char const *argv[]) {
     minReplaceTaskSize = atoi(parameters_map["--minReplaceTaskSize"].c_str());
   }
 
+  outfile =  parameters_map["--outfile"];
+
   SpecificationFile specificationFile;
   ConstraintFile constraintFile;
   TestSetFile testSetFile;
@@ -92,7 +96,7 @@ int main(int argc, char const *argv[]) {
 
   testSetFile.convert2acts(specificationFile);
   localSearch(specificationFile, constraintFile, testSetFile, maxTime, seed,
-              threadsNum, minScoreTaskSize, minReplaceTaskSize);
+              threadsNum, minScoreTaskSize, minReplaceTaskSize, outfile);
 
   return 0;
 }

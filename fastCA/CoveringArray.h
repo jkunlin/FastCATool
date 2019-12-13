@@ -14,6 +14,7 @@
 #include <mutex>
 #include <sys/time.h>
 #include <thread>
+#include <fstream>
 
 #include "ConstraintFile.H"
 #include "Coverage.h"
@@ -32,7 +33,7 @@ public:
   CoveringArray(const SpecificationFile &specificationFile,
                 const ConstraintFile &constraintFile, TestSetFile &testSet,
                 unsigned long long maxT, int seed, int threadsNum,
-                int minScoreTaskSize, int minReplaceTaskSize);
+                int minScoreTaskSize, int minReplaceTaskSize, std::string outfile);
   ~CoveringArray();
   void actsInitialize(const std::string file_name);
   void optimize();
@@ -51,6 +52,7 @@ private:
   std::set<unsigned> varInUncovertuples;
   LineVarTupleSet oneCoveredTuples;
   Tabu<Entry> entryTabu;
+  std::string outfile;
 
   unsigned long long maxTime;
   unsigned long long step;
@@ -97,6 +99,7 @@ private:
                             std::vector<unsigned> &line,
                             std::vector<unsigned> columns, size_t count);
   void printBestArray() const;
+  void outputBestArrayToFile() const;
   void tmpPrint();
   bool verify(const std::vector<std::vector<unsigned>> &resultArray);
   bool checkCovered(unsigned encode);

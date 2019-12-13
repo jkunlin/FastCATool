@@ -5,7 +5,7 @@ CoveringArray::CoveringArray(const SpecificationFile &specificationFile,
                              const ConstraintFile &constraintFile,
                              TestSetFile &testSet, unsigned long long maxT,
                              int seed, int threadsNum, int minScoreTaskSize,
-                             int minReplaceTaskSize)
+                             int minReplaceTaskSize, std::string outfile)
     : validater(specificationFile), satSolver(constraintFile.isEmpty()),
       specificationFile(specificationFile), testSet(testSet),
       coverage(specificationFile), entryTabu(4), maxTime(maxT) {
@@ -62,6 +62,7 @@ CoveringArray::CoveringArray(const SpecificationFile &specificationFile,
 
   mersenne.seed(seed);
   step = 0;
+  this->outfile = outfile;
 
   this->threadsNum = threadsNum;
   this->minScoreTaskSize = minScoreTaskSize;
@@ -389,17 +390,23 @@ void CoveringArray::optimize() {
     tmpPrint();
   }
 
-  if (!verify(bestArray)) {
-    std::cout << "wrong answer!!!!!" << std::endl;
-    return;
-  }
-  std::cout << "total steps: " << step << std::endl;
+//  if (!verify(bestArray)) {
+//    std::cout << "wrong answer!!!!!" << std::endl;
+//    return;
+//  }
+  std::cout << std::endl;
+  std::cout << "total steps : " << step << std::endl;
 
-  printBestArray();
+  if(outfile == ""){
+    printBestArray();
+  } else{
+    outputBestArrayToFile();
+  }
 }
 
 void CoveringArray::printBestArray() const {
   const Options &options = specificationFile.getOptions();
+  std::cout << std::endl;
   std::cout << "printing solution..." << std::endl;
 
   std::string sep;
@@ -425,7 +432,41 @@ void CoveringArray::printBestArray() const {
     }
     std::cout << std::endl;
   }
-  std::cout << "total size : " << bestArray.size() << std::endl;
+  std::cout << "Found Covering Array of size : " << bestArray.size() << std::endl;
+}
+
+void CoveringArray::outputBestArrayToFile() const {
+  const Options &options = specificationFile.getOptions();
+
+  std::ofstream ofs(outfile);
+
+  ofs << std::endl;
+  ofs << "printing solution..." << std::endl;
+
+  std::string sep;
+  ofs << "Parameters:" << std::endl;
+  for (int opt = 0; opt < options.size(); opt++) {
+    sep = "";
+    ofs << io.getVar(opt) << ": [";
+    for (int symbol = options.firstSymbol(opt);
+         symbol <= options.lastSymbol(opt); symbol++) {
+      ofs << sep << io.getValue(opt, symbol - options.firstSymbol(opt));
+      sep = ", ";
+    }
+    ofs << "]" << std::endl;
+  }
+  ofs << std::endl;
+
+  ofs << "Configurations:" << std::endl;
+  for (unsigned i = 0; i < bestArray.size(); ++i) {
+    ofs << i + 1 << "th  ";
+    for (int j = 0; j < bestArray[i].size(); j++) {
+      ofs << ' '
+                << io.getValue(j, bestArray[i][j] - options.firstSymbol(j));
+    }
+    ofs << std::endl;
+  }
+  std::cout << "Found Covering Array of size : " << bestArray.size() << std::endl;
 }
 
 void CoveringArray::tabugw() {

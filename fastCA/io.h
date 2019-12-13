@@ -29,6 +29,9 @@ public:
   const std::string &getVar(size_t varIndex) const {
     return varNames[varIndex];
   }
+  const std::string &getSystemName() const{
+    return systemName;
+  }
 
 protected:
   void readSystemName();

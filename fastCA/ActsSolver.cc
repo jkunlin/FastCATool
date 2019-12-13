@@ -5,10 +5,11 @@ void ActsSolver::solve(const SpecificationFile &specificationFile,
                        const ConstraintFile &constraintFile,
                        const std::string &res_file_name,
                        const TestSetFile &testSetFile) {
-  char filename[L_tmpnam];
-  if (!tmpnam(filename)) {
-    std::cerr << "tmp file name error" << std::endl;
-  }
+//  char filename[L_tmpnam];
+//  if (!mktemp(filename)) {
+//    std::cerr << "tmp file name error" << std::endl;
+//  }
+  char filename[] = "Apache_";
   std::string acts_inputfile_name = filename;
   acts_inputfile_name += std::to_string(getpid());
   acts_inputfile_name += ".txt";
@@ -23,7 +24,7 @@ void ActsSolver::solve(const SpecificationFile &specificationFile,
   }
   cmd += std::string("cmd ") + acts_inputfile_name + " " + res_file_name;
 //  std::cout << "input acts filename=" << acts_inputfile_name << std::endl;
-//  std::cout << "cmd=" << cmd << std::endl;
+  std::cout << "cmd=" << cmd << std::endl;
   std::string rm_cmd = std::string("rm ") + acts_inputfile_name;
   if (system(cmd.c_str()) != 0 || system(rm_cmd.c_str()) != 0) {
     std::cout << "system() wrong" << std::endl;
