@@ -3,6 +3,7 @@
 
 #include "ActsSolver.h"
 #include "CoveringArray.h"
+#include "io.h"
 #include <unistd.h>
 #include <random>
 
@@ -19,7 +20,7 @@ void localSearch(const SpecificationFile &specificationFile,
 //    std::cerr << "tmp file name error" << std::endl;
 //    abort();
 //
-  std::string acts_res_filename = "acts_infile_";
+  std::string acts_res_filename = "acts_result_" + io.getSystemName();
   acts_res_filename += std::to_string(getpid());
   ActsSolver.solve(specificationFile, constraintFile, acts_res_filename,
                    testSetFile);

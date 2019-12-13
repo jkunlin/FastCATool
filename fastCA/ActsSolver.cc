@@ -1,4 +1,5 @@
 #include "ActsSolver.h"
+#include "io.h"
 #include <unistd.h>
 
 void ActsSolver::solve(const SpecificationFile &specificationFile,
@@ -9,8 +10,8 @@ void ActsSolver::solve(const SpecificationFile &specificationFile,
 //  if (!mktemp(filename)) {
 //    std::cerr << "tmp file name error" << std::endl;
 //  }
-  char filename[] = "Apache_";
-  std::string acts_inputfile_name = filename;
+//  char filename[] = "acts_input_file_" + io.getSystemName();
+  std::string acts_inputfile_name = "acts_infile_" + io.getSystemName();
   acts_inputfile_name += std::to_string(getpid());
   acts_inputfile_name += ".txt";
   generate_input_file(specificationFile, constraintFile, acts_inputfile_name,

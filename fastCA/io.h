@@ -45,7 +45,7 @@ protected:
 
   std::ifstream infile;
 
-  std::string systemName;
+  std::string  systemName;
 
   std::vector<std::string> varNames; /*!< variable names */
   std::unordered_map<std::string, size_t> varName2index;

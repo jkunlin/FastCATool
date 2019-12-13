@@ -395,7 +395,7 @@ void CoveringArray::optimize() {
 //    return;
 //  }
   std::cout << std::endl;
-  std::cout << "total steps : " << step << std::endl;
+  std::cout << "Total steps : " << step << std::endl;
 
   if(outfile == ""){
     printBestArray();
