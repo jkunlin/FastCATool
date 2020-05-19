@@ -65,7 +65,6 @@ private:
   std::vector<std::packaged_task<void()>> tasks;
   std::atomic<bool> programStop;
   int threadsNum;
-  PascalTriangle pt;
 
   std::mutex uncoveredTuplesMutex;
   std::mutex oneCoveredTuplesMutex;

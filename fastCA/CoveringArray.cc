@@ -80,6 +80,7 @@ CoveringArray::CoveringArray(const SpecificationFile &specificationFile,
     for (int t = 1; t < threadsNum; ++t) {
       threadsPtr.push_back(new std::thread([t, this] {
         while (true) {
+          // TODO: cv.wait()
           while (true) {
             if (this->taskReadyPtrs[t]->load() || this->programStop.load())
               break;
@@ -377,8 +378,6 @@ void CoveringArray::optimize() {
     } else {
       tabugwParallel();
     }
-
-    struct timeval end;
 
     step++;
     continue;
@@ -1225,7 +1224,7 @@ void CoveringArray::replaceParallel(const unsigned var,
   const unsigned varOption = options.option(var);
 
   size_t taskNum = 0;
-  taskNum = pt.nCr(line.size() - 1, strength - 1);
+  taskNum = pascalTriangle.nCr(line.size() - 1, strength - 1);
 
   //  std::cout << taskNum << std::endl;
   int neededThreadsNum = std::min(

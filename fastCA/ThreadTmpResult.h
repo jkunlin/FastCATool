@@ -5,6 +5,8 @@
 #ifndef FASTCA_THREADTMPRESULT_H
 #define FASTCA_THREADTMPRESULT_H
 
+#include <limits>
+#include <vector>
 class ThreadTmpResult {
 public:
   long long firstBestScore = std::numeric_limits<long long>::min();
