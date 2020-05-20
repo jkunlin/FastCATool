@@ -66,6 +66,11 @@ private:
   std::atomic<bool> programStop;
   int threadsNum;
 
+  bool taskReady;
+  int finishThreadNum;
+  std::vector<std::mutex> taskMutex;
+  std::vector<std::condition_variable> taskCv;
+
   std::mutex uncoveredTuplesMutex;
   std::mutex oneCoveredTuplesMutex;
 

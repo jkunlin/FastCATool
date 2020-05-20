@@ -69,28 +69,52 @@ CoveringArray::CoveringArray(const SpecificationFile &specificationFile,
   this->minReplaceTaskSize = minReplaceTaskSize;
 
   // parallel
+  // if (this->threadsNum > 1) {
+  //   tasks.resize(threadsNum);
+  //   programStop.store(false);
+
+  //   for (int t = 0; t < threadsNum; ++t) {
+  //     taskReadyPtrs.push_back(new std::atomic<bool>(false));
+  //   }
+
+  //   for (int t = 1; t < threadsNum; ++t) {
+  //     threadsPtr.push_back(new std::thread([t, this] {
+  //       while (true) {
+  //         // TODO: cv.wait()
+  //         while (true) {
+  //           if (this->taskReadyPtrs[t]->load() || this->programStop.load())
+  //             break;
+  //         }
+  //         if (this->taskReadyPtrs[t]->load())
+  //           tasks[t]();
+  //         if (this->programStop.load()) {
+  //           break;
+  //         }
+  //         this->taskReadyPtrs[t]->store(false);
+  //       }
+  //     }));
+  //   }
+  // }
+
   if (this->threadsNum > 1) {
     tasks.resize(threadsNum);
+    taskMutex = std::vector<std::mutex>(threadsNum);
+    taskCv = std::vector<std::condition_variable>(threadsNum);
+    finishThreadNum = 0;
     programStop.store(false);
-
-    for (int t = 0; t < threadsNum; ++t) {
-      taskReadyPtrs.push_back(new std::atomic<bool>(false));
-    }
 
     for (int t = 1; t < threadsNum; ++t) {
       threadsPtr.push_back(new std::thread([t, this] {
+        std::unique_lock<std::mutex> lck(taskMutex[t]);
         while (true) {
-          // TODO: cv.wait()
-          while (true) {
-            if (this->taskReadyPtrs[t]->load() || this->programStop.load())
-              break;
-          }
-          if (this->taskReadyPtrs[t]->load())
-            tasks[t]();
+          taskCv[t].wait(lck); // TODO: it should be waiting before notify
           if (this->programStop.load()) {
             break;
           }
-          this->taskReadyPtrs[t]->store(false);
+          tasks[t]();
+          std::lock_guard<std::mutex> lck_finish(taskMutex[0]);
+          finishThreadNum++;
+          taskCv[0].notify_one();
         }
       }));
     }
@@ -100,16 +124,25 @@ CoveringArray::CoveringArray(const SpecificationFile &specificationFile,
 CoveringArray::~CoveringArray() {
   // parallel
   if (this->threadsNum > 1) {
-    this->programStop.store(true);
+    {
+      std::vector<std::unique_lock<std::mutex>> lck_vec;
+      for (int t = 1; t < threadsNum; ++t) {
+        lck_vec.push_back(std::unique_lock<std::mutex>(taskMutex[t]));
+      }
+      this->programStop.store(true);
+      for (int t = 1; t < threadsNum; ++t) {
+        taskCv[t].notify_one();
+      }
+    }
 
     for (auto threadptr : threadsPtr) {
       threadptr->join();
       delete threadptr;
     }
 
-    for (auto taskReadyPtr : taskReadyPtrs) {
-      delete taskReadyPtr;
-    }
+    // for (auto taskReadyPtr : taskReadyPtrs) {
+    //   delete taskReadyPtr;
+    // }
   }
 }
 
@@ -174,7 +207,7 @@ void CoveringArray::actsInitialize(const std::string file_name) {
   gettimeofday(&end, NULL);
   double start_sec = start.tv_sec + start.tv_usec / 1000000.0;
   double end_sec = end.tv_sec + end.tv_usec / 1000000.0;
-//  std::cout << "actsInitialize: " << end_sec - start_sec << std::endl;
+  //  std::cout << "actsInitialize: " << end_sec - start_sec << std::endl;
 
   entryTabu.initialize(Entry(array.size(), array.size()));
   validater.initialize(array);
@@ -288,7 +321,8 @@ void CoveringArray::removeUselessRows() {
   std::vector<unsigned> tmpTuple(strength);
 
   for (size_t lineIndex = 0; lineIndex < array.size();) {
-    if (oneCoveredTuples.oneCoveredCount(lineIndex) == 0 &&!testSet.isExistedRow(lineIndex)) {
+    if (oneCoveredTuples.oneCoveredCount(lineIndex) == 0 &&
+        !testSet.isExistedRow(lineIndex)) {
       const std::vector<unsigned> &line = array[lineIndex];
       for (std::vector<unsigned> columns = combinadic.begin(strength);
            columns[strength - 1] < options.size(); combinadic.next(columns)) {
@@ -389,16 +423,16 @@ void CoveringArray::optimize() {
     tmpPrint();
   }
 
-//  if (!verify(bestArray)) {
-//    std::cout << "wrong answer!!!!!" << std::endl;
-//    return;
-//  }
+  //  if (!verify(bestArray)) {
+  //    std::cout << "wrong answer!!!!!" << std::endl;
+  //    return;
+  //  }
   std::cout << std::endl;
   std::cout << "Total steps : " << step << std::endl;
 
-  if(outfile == ""){
+  if (outfile == "") {
     printBestArray();
-  } else{
+  } else {
     outputBestArrayToFile();
   }
 }
@@ -431,7 +465,8 @@ void CoveringArray::printBestArray() const {
     }
     std::cout << std::endl;
   }
-  std::cout << "Found Covering Array of size : " << bestArray.size() << std::endl;
+  std::cout << "Found Covering Array of size : " << bestArray.size()
+            << std::endl;
 }
 
 void CoveringArray::outputBestArrayToFile() const {
@@ -460,12 +495,12 @@ void CoveringArray::outputBestArrayToFile() const {
   for (unsigned i = 0; i < bestArray.size(); ++i) {
     ofs << i + 1 << "th  ";
     for (int j = 0; j < bestArray[i].size(); j++) {
-      ofs << ' '
-                << io.getValue(j, bestArray[i][j] - options.firstSymbol(j));
+      ofs << ' ' << io.getValue(j, bestArray[i][j] - options.firstSymbol(j));
     }
     ofs << std::endl;
   }
-  std::cout << "Found Covering Array of size : " << bestArray.size() << std::endl;
+  std::cout << "Found Covering Array of size : " << bestArray.size()
+            << std::endl;
 }
 
 void CoveringArray::tabugw() {
@@ -667,22 +702,35 @@ void CoveringArray::tabugwParallel() {
         [t, startIndex, endIndex, &base, &threadsTmpResult, this] {
           tabugwSubTask(startIndex, endIndex, base, threadsTmpResult[t]);
         });
-    this->taskReadyPtrs[t]->store(true);
+    if (t != 0) {
+      std::lock_guard<std::mutex> lck(taskMutex[t]);
+      taskCv[t].notify_one();
+    }
+    // this->taskReadyPtrs[t]->store(true);
     startIndex = endIndex;
   }
-
   tasks[0]();
 
-  // waitting the subtasks to be done
   while (true) {
-    bool running = false;
-    for (int i = 1; i < neededThreadsNum; ++i) {
-      running = running || taskReadyPtrs[i]->load();
-    }
-    if (!running) {
+    std::unique_lock<std::mutex> lck(taskMutex[0]);
+    if (finishThreadNum + 1 == neededThreadsNum) {
+      finishThreadNum = 0;
       break;
+    } else {
+      taskCv[0].wait(lck);
     }
   }
+
+  // waitting the subtasks to be done
+  // while (true) {
+  //   bool running = false;
+  //   for (int i = 1; i < neededThreadsNum; ++i) {
+  //     running = running || taskReadyPtrs[i]->load();
+  //   }
+  //   if (!running) {
+  //     break;
+  //   }
+  // }
 
   // merge the result of sub threads
   long long firstBestScore = std::numeric_limits<long long>::min();
@@ -1261,7 +1309,11 @@ void CoveringArray::replaceParallel(const unsigned var,
           this->tabugwReplaceSubTask(var, lineIndex, options, strength, line,
                                      columns, count);
         });
-    taskReadyPtrs[t]->store(true);
+    // taskReadyPtrs[t]->store(true);
+    if (t != 0) {
+      std::lock_guard<std::mutex> lck(taskMutex[t]);
+      taskCv[t].notify_one();
+    }
 
     k += count;
     combinadic.columns(columns, options.size(), k);
@@ -1270,17 +1322,15 @@ void CoveringArray::replaceParallel(const unsigned var,
     //   combinadic.next(columns);
     // }
   }
-
   tasks[0]();
 
-  // waitting the subtasks to be done
   while (true) {
-    bool running = false;
-    for (int i = 1; i < neededThreadsNum; ++i) {
-      running = running || taskReadyPtrs[i]->load();
-    }
-    if (!running) {
+    std::unique_lock<std::mutex> lck(taskMutex[0]);
+    if (finishThreadNum + 1 == neededThreadsNum) {
+      finishThreadNum = 0;
       break;
+    } else {
+      taskCv[0].wait(lck);
     }
   }
 
