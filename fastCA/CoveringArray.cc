@@ -663,7 +663,7 @@ void CoveringArray::tabugwParallel() {
     } else {
       endIndex = startIndex + taskSize;
     }
-    tasks[t] = std::packaged_task<void()>(
+    tasks[t] = std::function<void()>(
         [t, startIndex, endIndex, &base, &threadsTmpResult, this] {
           tabugwSubTask(startIndex, endIndex, base, threadsTmpResult[t]);
         });
@@ -1248,7 +1248,7 @@ void CoveringArray::replaceParallel(const unsigned var,
   size_t count;
   std::vector<unsigned> columns = combinadic.begin(strength - 1);
   columns = combinadic.begin(strength - 1);
-  for (int t = 0; t < neededThreadsNum; ++t) {
+  for (int t = 0, k = 0; t < neededThreadsNum; ++t) {
     if (left > 0) {
       count = taskSize + 1;
       --left;
@@ -1256,16 +1256,19 @@ void CoveringArray::replaceParallel(const unsigned var,
       count = taskSize;
     }
 
-    tasks[t] = std::packaged_task<void()>(
+    tasks[t] = std::function<void()>(
         [&var, &lineIndex, &options, &strength, &line, columns, count, this] {
           this->tabugwReplaceSubTask(var, lineIndex, options, strength, line,
                                      columns, count);
         });
     taskReadyPtrs[t]->store(true);
 
-    for (int i = 0; i < count; ++i) {
-      combinadic.next(columns);
-    }
+    k += count;
+    combinadic.columns(columns, options.size(), k);
+
+    // for (int i = 0; i < count; ++i) {
+    //   combinadic.next(columns);
+    // }
   }
 
   tasks[0]();

@@ -41,6 +41,56 @@ void Combinadic::next(std::vector<unsigned> &sortedSubset) const {
   ++sortedSubset[limit];
 }
 
+// [low, high)
+unsigned first_leq(unsigned low, unsigned high, unsigned combination,
+                   unsigned &k) {
+  unsigned mid = (low + high) / 2;
+  unsigned cur = pascalTriangle.nCr(mid, combination);
+  if (k < cur) { // [low, mid)
+    if (mid - low <= 1) {
+      k -= pascalTriangle.nCr(low, combination);
+      return low;
+    }
+    return first_leq(low, mid, combination, k);
+  } else { // [mid, high)
+    if (high - mid <= 1) {
+      k -= cur;
+      return mid;
+    }
+    return first_leq(mid, high, combination, k);
+  }
+}
+
+void Combinadic::columns(std::vector<unsigned> &sortedSubset,
+                         unsigned upper_bound, unsigned k) const {
+  unsigned sz = sortedSubset.size();
+  assert(sz >= 1);
+
+  sortedSubset[sz - 1] = first_leq(sz - 1, upper_bound, sz, k);
+
+  for (unsigned i = sz - 1; i-- > 0;) {
+    sortedSubset[i] = first_leq(i, sortedSubset[i + 1], i + 1, k);
+  }
+}
+
+// void Combinadic::columns(std::vector<unsigned> &sortedSubset,
+//                          unsigned k) const {
+//   unsigned j = *sortedSubset.rbegin();
+//   for (unsigned i = sortedSubset.size(); i-- > 0; j = i) {
+//     unsigned last = pascalTriangle.nCr(j, i + 1);
+//     do {
+//       ++j;
+//       unsigned cur = pascalTriangle.nCr(j, i + 1);
+//       if (cur > k) {
+//         sortedSubset[i] = j - 1;
+//         k -= last;
+//         break;
+//       }
+//       last = cur;
+//     } while (true);
+//   }
+// }
+
 void Combinadic::previous(std::vector<unsigned> &sortedSubset) const {
   assert(sortedSubset.size());
   unsigned limit = sortedSubset.size();

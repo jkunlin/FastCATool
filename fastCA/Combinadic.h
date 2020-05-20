@@ -31,6 +31,8 @@ public:
   //	}
   std::vector<unsigned> begin(const unsigned size) const;
   void next(std::vector<unsigned> &sortedSubset) const;
+  void columns(std::vector<unsigned> &sortedSubset, unsigned k) const;
+  void columns(std::vector<unsigned> &sortedSubset, unsigned upper_bound, unsigned k) const;
   void previous(std::vector<unsigned> &sortedSubset) const;
   unsigned encode(const std::vector<unsigned> &sortedSubset) const;
 

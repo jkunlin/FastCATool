@@ -62,7 +62,7 @@ private:
   int minReplaceTaskSize;
   std::vector<std::atomic<bool> *> taskReadyPtrs;
   std::vector<std::thread *> threadsPtr;
-  std::vector<std::packaged_task<void()>> tasks;
+  std::vector<std::function<void()>> tasks;
   std::atomic<bool> programStop;
   int threadsNum;
 
