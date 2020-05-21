@@ -9,12 +9,12 @@
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
+#include <fstream>
 #include <functional>
 #include <future>
 #include <mutex>
 #include <sys/time.h>
 #include <thread>
-#include <fstream>
 
 #include "ConstraintFile.H"
 #include "Coverage.h"
@@ -33,7 +33,8 @@ public:
   CoveringArray(const SpecificationFile &specificationFile,
                 const ConstraintFile &constraintFile, TestSetFile &testSet,
                 unsigned long long maxT, int seed, int threadsNum,
-                int minScoreTaskSize, int minReplaceTaskSize, std::string outfile);
+                int minScoreTaskSize, int minReplaceTaskSize,
+                std::string outfile);
   ~CoveringArray();
   void actsInitialize(const std::string file_name);
   void optimize();
@@ -99,8 +100,6 @@ private:
   void tabugwSubTask(const size_t start_index, const size_t end_index,
                      const unsigned &base, ThreadTmpResult &threadTmpResult);
   void tabugwReplaceSubTask(const unsigned &var, const unsigned &lineIndex,
-                            const Options &options, const unsigned &strength,
-                            std::vector<unsigned> &line,
                             std::vector<unsigned> columns, size_t count);
   void printBestArray() const;
   void outputBestArrayToFile() const;

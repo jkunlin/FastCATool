@@ -1236,23 +1236,32 @@ void CoveringArray::replace(const unsigned var, const unsigned lineIndex) {
     return;
   }
   validater.change_var(lineIndex, varOption, line[varOption], var);
-  std::swap(line[line.size() - 1], line[varOption]);
 
   std::vector<unsigned> tmpSortedColumns(strength);
   std::vector<unsigned> tmpSortedTupleToCover(strength);
   std::vector<unsigned> tmpSortedTupleToUncover(strength);
+
   for (std::vector<unsigned> columns = combinadic.begin(strength - 1);
        columns[strength - 2] < line.size() - 1; combinadic.next(columns)) {
-    for (unsigned i = 0; i < columns.size(); ++i) {
-      tmpSortedTupleToUncover[i] = tmpSortedTupleToCover[i] = line[columns[i]];
+    int add = 0;
+    for (size_t i = 0, j = 0; i < columns.size(); ++i, ++j) {
+      if (add == 0 && columns[i] >= varOption) {
+        add = 1;
+        tmpSortedColumns[j] = varOption;
+        tmpSortedTupleToCover[j] = var;
+        tmpSortedTupleToUncover[j] = line[varOption];
+        ++j;
+      }
+      unsigned column = columns[i] + add;
+      tmpSortedColumns[j] = column;
+      tmpSortedTupleToUncover[j] = tmpSortedTupleToCover[j] = line[column];
     }
-    tmpSortedTupleToCover[strength - 1] = var;
-    tmpSortedTupleToUncover[strength - 1] = line[line.size() - 1];
-    std::sort(tmpSortedTupleToCover.begin(), tmpSortedTupleToCover.end());
-    std::sort(tmpSortedTupleToUncover.begin(), tmpSortedTupleToUncover.end());
-    for (unsigned i = 0; i < tmpSortedTupleToCover.size(); ++i) {
-      tmpSortedColumns[i] = options.option(tmpSortedTupleToCover[i]);
+    if (add == 0) {
+      tmpSortedColumns.back() = varOption;
+      tmpSortedTupleToCover.back() = var;
+      tmpSortedTupleToUncover.back() = line[varOption];
     }
+
     unsigned tmpTupleToCoverEncode =
         coverage.encode(tmpSortedColumns, tmpSortedTupleToCover);
     unsigned tmpTupleToUncoverEncode =
@@ -1260,7 +1269,6 @@ void CoveringArray::replace(const unsigned var, const unsigned lineIndex) {
     cover(tmpTupleToCoverEncode, lineIndex);
     uncover(tmpTupleToUncoverEncode, lineIndex);
   }
-  std::swap(line[line.size() - 1], line[varOption]);
   line[varOption] = var;
 }
 
@@ -1289,7 +1297,6 @@ void CoveringArray::replaceParallel(const unsigned var,
   }
 
   validater.change_var(lineIndex, varOption, line[varOption], var);
-  std::swap(line[line.size() - 1], line[varOption]);
 
   size_t taskSize = taskNum / neededThreadsNum;
   int left = taskNum % neededThreadsNum;
@@ -1304,12 +1311,9 @@ void CoveringArray::replaceParallel(const unsigned var,
       count = taskSize;
     }
 
-    tasks[t] = std::function<void()>(
-        [&var, &lineIndex, &options, &strength, &line, columns, count, this] {
-          this->tabugwReplaceSubTask(var, lineIndex, options, strength, line,
-                                     columns, count);
-        });
-    // taskReadyPtrs[t]->store(true);
+    tasks[t] = std::function<void()>([&var, &lineIndex, columns, count, this] {
+      this->tabugwReplaceSubTask(var, lineIndex, columns, count);
+    });
     if (t != 0) {
       std::lock_guard<std::mutex> lck(taskMutex[t]);
       taskCv[t].notify_one();
@@ -1317,10 +1321,6 @@ void CoveringArray::replaceParallel(const unsigned var,
 
     k += count;
     combinadic.columns(columns, options.size(), k);
-
-    // for (int i = 0; i < count; ++i) {
-    //   combinadic.next(columns);
-    // }
   }
   tasks[0]();
 
@@ -1334,31 +1334,43 @@ void CoveringArray::replaceParallel(const unsigned var,
     }
   }
 
-  std::swap(line[line.size() - 1], line[varOption]);
   line[varOption] = var;
 }
 
-void CoveringArray::tabugwReplaceSubTask(
-    const unsigned &var, const unsigned &lineIndex, const Options &options,
-    const unsigned &strength, std::vector<unsigned> &line,
-    std::vector<unsigned> columns, size_t count) {
+void CoveringArray::tabugwReplaceSubTask(const unsigned &var,
+                                         const unsigned &lineIndex,
+                                         std::vector<unsigned> columns,
+                                         size_t count) {
   {
+    std::vector<unsigned> &line = array[lineIndex];
+    const Options &options = specificationFile.getOptions();
+    const unsigned strength = specificationFile.getStrenth();
+    const unsigned varOption = options.option(var);
+
     std::vector<unsigned> tmpSortedColumns(strength);
     std::vector<unsigned> tmpSortedTupleToCover(strength);
     std::vector<unsigned> tmpSortedTupleToUncover(strength);
+
     for (size_t done = 0; done < count; ++done, combinadic.next(columns)) {
-      for (unsigned i = 0; i < columns.size(); ++i) {
-        tmpSortedTupleToUncover[i] = tmpSortedTupleToCover[i] =
-            line[columns[i]];
+      int add = 0;
+      for (size_t i = 0, j = 0; i < columns.size(); ++i, ++j) {
+        if (add == 0 && columns[i] >= varOption) {
+          add = 1;
+          tmpSortedColumns[j] = varOption;
+          tmpSortedTupleToCover[j] = var;
+          tmpSortedTupleToUncover[j] = line[varOption];
+          ++j;
+        }
+        unsigned column = columns[i] + add;
+        tmpSortedColumns[j] = column;
+        tmpSortedTupleToUncover[j] = tmpSortedTupleToCover[j] = line[column];
+      }
+      if (add == 0) {
+        tmpSortedColumns.back() = varOption;
+        tmpSortedTupleToCover.back() = var;
+        tmpSortedTupleToUncover.back() = line[varOption];
       }
 
-      tmpSortedTupleToCover[strength - 1] = var;
-      tmpSortedTupleToUncover[strength - 1] = line[line.size() - 1];
-      std::sort(tmpSortedTupleToCover.begin(), tmpSortedTupleToCover.end());
-      std::sort(tmpSortedTupleToUncover.begin(), tmpSortedTupleToUncover.end());
-      for (unsigned i = 0; i < tmpSortedTupleToCover.size(); ++i) {
-        tmpSortedColumns[i] = options.option(tmpSortedTupleToCover[i]);
-      }
       unsigned tmpTupleToCoverEncode =
           coverage.encode(tmpSortedColumns, tmpSortedTupleToCover);
       unsigned tmpTupleToUncoverEncode =
