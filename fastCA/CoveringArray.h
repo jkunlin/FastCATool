@@ -100,7 +100,7 @@ private:
   void tabugwSubTask(const size_t start_index, const size_t end_index,
                      const unsigned &base, ThreadTmpResult &threadTmpResult);
   void tabugwReplaceSubTask(const unsigned &var, const unsigned &lineIndex,
-                            std::vector<unsigned> columns, size_t count);
+                            size_t k, size_t count);
   void printBestArray() const;
   void outputBestArrayToFile() const;
   void tmpPrint();

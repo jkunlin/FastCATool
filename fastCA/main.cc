@@ -86,7 +86,7 @@ int main(int argc, char const *argv[]) {
     minReplaceTaskSize = atoi(parameters_map["--minReplaceTaskSize"].c_str());
   }
 
-  outfile =  parameters_map["--outfile"];
+  outfile = parameters_map["--outfile"];
 
   SpecificationFile specificationFile;
   ConstraintFile constraintFile;

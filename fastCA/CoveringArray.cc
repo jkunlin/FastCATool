@@ -1301,8 +1301,6 @@ void CoveringArray::replaceParallel(const unsigned var,
   size_t taskSize = taskNum / neededThreadsNum;
   int left = taskNum % neededThreadsNum;
   size_t count;
-  std::vector<unsigned> columns = combinadic.begin(strength - 1);
-  columns = combinadic.begin(strength - 1);
   for (int t = 0, k = 0; t < neededThreadsNum; ++t) {
     if (left > 0) {
       count = taskSize + 1;
@@ -1311,8 +1309,8 @@ void CoveringArray::replaceParallel(const unsigned var,
       count = taskSize;
     }
 
-    tasks[t] = std::function<void()>([&var, &lineIndex, columns, count, this] {
-      this->tabugwReplaceSubTask(var, lineIndex, columns, count);
+    tasks[t] = std::function<void()>([&var, &lineIndex, k, count, this] {
+      this->tabugwReplaceSubTask(var, lineIndex, k, count);
     });
     if (t != 0) {
       std::lock_guard<std::mutex> lck(taskMutex[t]);
@@ -1320,7 +1318,6 @@ void CoveringArray::replaceParallel(const unsigned var,
     }
 
     k += count;
-    combinadic.columns(columns, options.size(), k);
   }
   tasks[0]();
 
@@ -1338,8 +1335,7 @@ void CoveringArray::replaceParallel(const unsigned var,
 }
 
 void CoveringArray::tabugwReplaceSubTask(const unsigned &var,
-                                         const unsigned &lineIndex,
-                                         std::vector<unsigned> columns,
+                                         const unsigned &lineIndex, size_t k,
                                          size_t count) {
   {
     std::vector<unsigned> &line = array[lineIndex];
@@ -1351,6 +1347,8 @@ void CoveringArray::tabugwReplaceSubTask(const unsigned &var,
     std::vector<unsigned> tmpSortedTupleToCover(strength);
     std::vector<unsigned> tmpSortedTupleToUncover(strength);
 
+    std::vector<unsigned> columns = combinadic.begin(strength - 1);
+    combinadic.columns(columns, options.size(), k);
     for (size_t done = 0; done < count; ++done, combinadic.next(columns)) {
       int add = 0;
       for (size_t i = 0, j = 0; i < columns.size(); ++i, ++j) {
