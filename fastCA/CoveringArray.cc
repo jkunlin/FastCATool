@@ -897,9 +897,9 @@ void CoveringArray::tabugwSubTask(const size_t start_index,
     unsigned diffCount = 0;
     unsigned diffVar;
     for (unsigned i = 0; i < tuple->size(); ++i) {
-      if (line[columns->at(i)] != tuple->at(i)) {
+      if (line[(*columns)[i]] != (*tuple)[i]) {
         diffCount++;
-        diffVar = tuple->at(i);
+        diffVar = (*tuple)[i];
       }
     }
     if (diffCount > 1) {
