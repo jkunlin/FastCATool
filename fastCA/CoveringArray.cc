@@ -406,7 +406,8 @@ void CoveringArray::optimize() {
 
     size_t tasksNum = uncoveredTuples.size() * array.size();
     int neededThreadsNum = std::min(
-        threadsNum, (int)std::ceil((double)tasksNum / minScoreTaskSize));
+        threadsNum, (int)std::floor((double)tasksNum / minScoreTaskSize));
+    neededThreadsNum = std::max(neededThreadsNum, 1);
     if (threadsNum == 1 || neededThreadsNum < 2) {
       tabugw();
     } else {
@@ -684,7 +685,8 @@ void CoveringArray::tabugwParallel() {
 
   size_t tasksNum = uncoveredTuples.size() * array.size();
   int neededThreadsNum =
-      std::min(threadsNum, (int)std::ceil((double)tasksNum / minScoreTaskSize));
+      std::min(threadsNum, (int)std::floor((double)tasksNum / minScoreTaskSize));
+  neededThreadsNum = std::max(neededThreadsNum, 1);
   std::vector<ThreadTmpResult> threadsTmpResult(neededThreadsNum);
 
   size_t taskSize = tasksNum / neededThreadsNum;
@@ -1284,7 +1286,8 @@ void CoveringArray::replaceParallel(const unsigned var,
 
   //  std::cout << taskNum << std::endl;
   int neededThreadsNum = std::min(
-      threadsNum, (int)std::ceil((double)taskNum / minReplaceTaskSize));
+      threadsNum, (int)std::floor((double)taskNum / minReplaceTaskSize));
+  neededThreadsNum = std::max(neededThreadsNum, 1);
   if (threadsNum == 1 || neededThreadsNum < 2) {
     replace(var, lineIndex);
     return;
