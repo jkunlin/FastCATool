@@ -684,8 +684,8 @@ void CoveringArray::tabugwParallel() {
   long long bestScore = std::numeric_limits<long long>::min();
 
   size_t tasksNum = uncoveredTuples.size() * array.size();
-  int neededThreadsNum =
-      std::min(threadsNum, (int)std::floor((double)tasksNum / minScoreTaskSize));
+  int neededThreadsNum = std::min(
+      threadsNum, (int)std::floor((double)tasksNum / minScoreTaskSize));
   neededThreadsNum = std::max(neededThreadsNum, 1);
   std::vector<ThreadTmpResult> threadsTmpResult(neededThreadsNum);
 
@@ -878,72 +878,74 @@ void CoveringArray::tabugwParallel() {
 void CoveringArray::tabugwSubTask(const size_t start_index,
                                   const size_t end_index, const unsigned &base,
                                   ThreadTmpResult &threadTmpResult) {
-  size_t index = start_index;
-  size_t tupleIndex = index / array.size();
-  size_t lineIndex;
-  unsigned tupleEncode =
-      uncoveredTuples.encode((base + tupleIndex) % uncoveredTuples.size());
-  const std::vector<unsigned> *tuple = &coverage.getTuple(tupleEncode);
-  const std::vector<unsigned> *columns = &coverage.getColumns(tupleEncode);
+  size_t tupleIndex = start_index / array.size();
+  size_t lineIndex = start_index % array.size();
+  size_t remain = end_index - start_index;
+  do {
+    size_t lineIndex_end;
+    if (array.size() - lineIndex < remain) {
+      lineIndex_end = array.size();
+    } else {
+      lineIndex_end = lineIndex + remain;
+    }
+    remain -= lineIndex_end - lineIndex;
 
-  for (; index < end_index; ++index) {
-    lineIndex = index % array.size();
-    if (lineIndex == 0) {
-      tupleIndex = index / array.size();
-      tupleEncode =
-          uncoveredTuples.encode((base + tupleIndex) % uncoveredTuples.size());
-      tuple = &coverage.getTuple(tupleEncode);
-      columns = &coverage.getColumns(tupleEncode);
-    }
-    std::vector<unsigned> &line = array[lineIndex];
-    unsigned diffCount = 0;
-    unsigned diffVar;
-    for (unsigned i = 0; i < tuple->size(); ++i) {
-      if (line[(*columns)[i]] != (*tuple)[i]) {
-        diffCount++;
-        diffVar = (*tuple)[i];
+    unsigned tupleEncode =
+        uncoveredTuples.encode((base + tupleIndex) % uncoveredTuples.size());
+    const std::vector<unsigned> *tuple = &coverage.getTuple(tupleEncode);
+    const std::vector<unsigned> *columns = &coverage.getColumns(tupleEncode);
+    for (; lineIndex < lineIndex_end; lineIndex++) {
+      std::vector<unsigned> &line = array[lineIndex];
+      unsigned diffCount = 0;
+      unsigned diffVar;
+      for (unsigned i = 0; i < tuple->size(); ++i) {
+        if (line[(*columns)[i]] != (*tuple)[i]) {
+          diffCount++;
+          diffVar = (*tuple)[i];
+        }
+      }
+      if (diffCount > 1) {
+        continue;
+      }
+      unsigned diffOption = specificationFile.getOptions().option(diffVar);
+      // Tabu
+      if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
+        continue;
+      }
+      // given test set
+      if (testSet.isExistedOption(lineIndex, diffOption)) {
+        continue;
+      }
+      // my check
+      if (!validater.valida_change(lineIndex, diffOption, line[diffOption],
+                                   diffVar)) {
+        continue;
+      }
+      long long tmpScore = varScoreOfRow(diffVar, lineIndex);
+      if (threadTmpResult.bestScore < tmpScore) {
+        threadTmpResult.bestScore = tmpScore;
+        if (tupleIndex == 0) {
+          threadTmpResult.firstBestScore = tmpScore;
+          threadTmpResult.firstBestRows.clear();
+          threadTmpResult.firstBestRows.push_back(lineIndex);
+          threadTmpResult.firstBestVars.clear();
+          threadTmpResult.firstBestVars.push_back(diffVar);
+        }
+        threadTmpResult.bestRows.clear();
+        threadTmpResult.bestRows.push_back(lineIndex);
+        threadTmpResult.bestVars.clear();
+        threadTmpResult.bestVars.push_back(diffVar);
+      } else if (threadTmpResult.bestScore == tmpScore) {
+        threadTmpResult.bestRows.push_back(lineIndex);
+        threadTmpResult.bestVars.push_back(diffVar);
+        if (tupleIndex == 0) {
+          threadTmpResult.firstBestRows.push_back(lineIndex);
+          threadTmpResult.firstBestVars.push_back(diffVar);
+        }
       }
     }
-    if (diffCount > 1) {
-      continue;
-    }
-    unsigned diffOption = specificationFile.getOptions().option(diffVar);
-    // Tabu
-    if (entryTabu.isTabu(Entry(lineIndex, diffOption))) {
-      continue;
-    }
-    // given test set
-    if (testSet.isExistedOption(lineIndex, diffOption)) {
-      continue;
-    }
-    // my check
-    if (!validater.valida_change(lineIndex, diffOption, line[diffOption],
-                                 diffVar)) {
-      continue;
-    }
-    long long tmpScore = varScoreOfRow(diffVar, lineIndex);
-    if (threadTmpResult.bestScore < tmpScore) {
-      threadTmpResult.bestScore = tmpScore;
-      if (tupleIndex == 0) {
-        threadTmpResult.firstBestScore = tmpScore;
-        threadTmpResult.firstBestRows.clear();
-        threadTmpResult.firstBestRows.push_back(lineIndex);
-        threadTmpResult.firstBestVars.clear();
-        threadTmpResult.firstBestVars.push_back(diffVar);
-      }
-      threadTmpResult.bestRows.clear();
-      threadTmpResult.bestRows.push_back(lineIndex);
-      threadTmpResult.bestVars.clear();
-      threadTmpResult.bestVars.push_back(diffVar);
-    } else if (threadTmpResult.bestScore == tmpScore) {
-      threadTmpResult.bestRows.push_back(lineIndex);
-      threadTmpResult.bestVars.push_back(diffVar);
-      if (tupleIndex == 0) {
-        threadTmpResult.firstBestRows.push_back(lineIndex);
-        threadTmpResult.firstBestVars.push_back(diffVar);
-      }
-    }
-  }
+    lineIndex = 0;
+  } while (remain > 0);
 }
 
 long long
