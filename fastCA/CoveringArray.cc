@@ -944,6 +944,7 @@ void CoveringArray::tabugwSubTask(const size_t start_index,
         }
       }
     }
+    tupleIndex++;
     lineIndex = 0;
   } while (remain > 0);
 }
