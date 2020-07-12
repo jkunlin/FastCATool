@@ -135,9 +135,9 @@ Valid::Literal IO::getLiteral(const std::string &term) {
   Valid::Literal lit;
 
   bool isNeg = true;
-  size_t pos = term.find_first_of("!=");
+  size_t pos = term.find("!=");
   if (pos == term.npos) {
-    pos = term.find_first_of('=');
+    pos = term.find('=');
     isNeg = false;
   }
 
@@ -172,13 +172,13 @@ void IO::readConstraint(ConstraintFile &constraint) {
       continue;
     }
     std::size_t prev = 0, pos;
-    while ((pos = line.find_first_of("||", prev)) != std::string::npos) {
+    while ((pos = line.find("||", prev)) != std::string::npos) {
       if (pos > prev) {
         term = line.substr(prev, pos - prev);
         strip(term);
         clause.push_back(getLiteral(term));
       }
-      prev = pos + 1;
+      prev = pos + 2;
     }
     if (prev < line.length()) {
       term = line.substr(prev, std::string::npos);
@@ -250,7 +250,7 @@ void IO::readTestSet(TestSetFile &testSet) {
       }
       auto &varName = names[i];
       test[pos[i]] = getFastcaValue(varName, value);
-//      std::cout << pos[i] << '\t' << test[pos[i]] << std::endl;
+      //      std::cout << pos[i] << '\t' << test[pos[i]] << std::endl;
     }
     testSet.addTest(test);
   }
