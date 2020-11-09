@@ -210,7 +210,6 @@ void CoveringArray::actsInitialize(const std::string file_name) {
   //  std::cout << "actsInitialize: " << end_sec - start_sec << std::endl;
 
   entryTabu.initialize(Entry(array.size(), array.size()));
-  validater.initialize(array);
   std::cout << "time    size  step" << std::endl;
   tmpPrint();
   oneCoveredTuples.initialize(specificationFile, array.size());
@@ -267,7 +266,6 @@ void CoveringArray::replaceRow(const unsigned lineIndex,
   }
   entryTabu.initialize(
       Entry(array.size(), specificationFile.getOptions().size()));
-  validater.change_row(lineIndex, ranLine);
 }
 
 void CoveringArray::replaceRowforTuple(const unsigned encode) {
@@ -312,7 +310,6 @@ void CoveringArray::replaceRowforTuple(const unsigned encode) {
   }
   entryTabu.initialize(
       Entry(array.size(), specificationFile.getOptions().size()));
-  validater.change_row(lineIndex, ranLine);
 }
 
 void CoveringArray::removeUselessRows() {
@@ -341,8 +338,6 @@ void CoveringArray::removeUselessRows() {
           entry.setRow(array.size() - 1);
         }
       }
-      validater.exchange_row(lineIndex, array.size() - 1);
-      validater.pop_back_row();
       oneCoveredTuples.exchange_row(lineIndex, array.size() - 1);
       oneCoveredTuples.pop_back_row();
       array.pop_back();
@@ -370,8 +365,6 @@ void CoveringArray::removeOneRowRandom() {
   }
 
   std::swap(array[array.size() - 1], array[rowToremoveIndex]);
-  validater.exchange_row(rowToremoveIndex, array.size() - 1);
-  validater.pop_back_row();
   oneCoveredTuples.exchange_row(rowToremoveIndex, array.size() - 1);
   oneCoveredTuples.pop_back_row();
   for (auto &entry : entryTabu) {
@@ -540,8 +533,7 @@ void CoveringArray::tabugw() {
       }
 
       // my check
-      if (!validater.valida_change(lineIndex, diffOption, line[diffOption],
-                                   diffVar)) {
+      if (!validater.valida_change(array[lineIndex], diffVar)) {
         continue;
       }
       long long tmpScore = varScoreOfRow(diffVar, lineIndex);
@@ -634,7 +626,8 @@ void CoveringArray::tabugw() {
     }
 
     // my check
-    if (need_to_check && !validater.valida_row(array[lineIndex], changedVars)) {
+    if (need_to_check &&
+        !validater.valida_changes(array[lineIndex], changedVars)) {
       continue;
     }
     // greedy
@@ -834,7 +827,8 @@ void CoveringArray::tabugwParallel() {
     }
 
     // my check
-    if (need_to_check && !validater.valida_row(array[lineIndex], changedVars)) {
+    if (need_to_check &&
+        !validater.valida_changes(array[lineIndex], changedVars)) {
       continue;
     }
     // greedy
@@ -917,8 +911,7 @@ void CoveringArray::tabugwSubTask(const size_t start_index,
         continue;
       }
       // my check
-      if (!validater.valida_change(lineIndex, diffOption, line[diffOption],
-                                   diffVar)) {
+      if (!validater.valida_change(array[lineIndex], diffVar)) {
         continue;
       }
       long long tmpScore = varScoreOfRow(diffVar, lineIndex);
@@ -1166,7 +1159,6 @@ void CoveringArray::multiVarReplace(
     auto option = options.option(var);
     org_vars.push_back(array[lineIndex][option]);
   }
-  validater.change_mutivar(lineIndex, org_vars, sortedMultiVars);
   multiVarRow(sortedMultiVars, lineIndex, true);
 }
 
@@ -1240,7 +1232,6 @@ void CoveringArray::replace(const unsigned var, const unsigned lineIndex) {
   if (line[varOption] == var) {
     return;
   }
-  validater.change_var(lineIndex, varOption, line[varOption], var);
 
   std::vector<unsigned> tmpSortedColumns(strength);
   std::vector<unsigned> tmpSortedTupleToCover(strength);
@@ -1301,8 +1292,6 @@ void CoveringArray::replaceParallel(const unsigned var,
   if (line[varOption] == var) {
     return;
   }
-
-  validater.change_var(lineIndex, varOption, line[varOption], var);
 
   size_t taskSize = taskNum / neededThreadsNum;
   int left = taskNum % neededThreadsNum;

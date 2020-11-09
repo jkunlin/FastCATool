@@ -54,11 +54,9 @@ typedef std::vector<Clause> Formula;
 class Validater {
 private:
   using Formula_size_type = std::vector<Clause>::size_type;
-  using Clauses_sat_count = std::vector<unsigned>;
   const SpecificationFile &specificationFile;
   std::vector<std::vector<Formula_size_type>> option_clasue;
   Formula formula;
-  std::vector<Clauses_sat_count> rows_sat_count;
 
 public:
   Validater(const SpecificationFile &specificationFile)
@@ -66,45 +64,63 @@ public:
     option_clasue.resize(specificationFile.getOptions().size());
   }
 
-  bool valida_row(std::vector<unsigned> &row,
-                  std::vector<unsigned> &changedVars) {
+  bool valida_changes(std::vector<unsigned> &row,
+                      std::vector<unsigned> &changedVars) {
     const Options &options = specificationFile.getOptions();
     for (size_t i = 0; i < changedVars.size(); ++i) {
       unsigned opt = options.option(changedVars[i]);
       std::swap(row[opt], changedVars[i]);
     }
-    bool pass = true;
+    bool sat = valida_row(row);
+    for (size_t i = 0; i < changedVars.size(); ++i) {
+      unsigned opt = options.option(changedVars[i]);
+      std::swap(row[opt], changedVars[i]);
+    }
+    return sat;
+  }
+
+  bool valida_change(std::vector<unsigned> &row, unsigned changedVar) {
+    const Options &options = specificationFile.getOptions();
+    unsigned changeOpt = options.option(changedVar);
+
+    std::swap(row[changeOpt], changedVar);
+    bool sat = valida_row(row);
+    std::swap(row[changeOpt], changedVar);
+
+    return sat;
+  }
+
+  bool valida_row(std::vector<unsigned> &row) {
+    const Options &options = specificationFile.getOptions();
+    bool sat = true;
     for (auto cl : formula) {
-      bool cl_failed = true;
+      bool cl_unsat = true;
       for (auto lt : cl) {
         unsigned v = lt.variable();
         unsigned opt = options.option(v);
         if (lt.is_negative()) {
           if (v != row[opt]) {
-            cl_failed = false;
+            cl_unsat = false;
             break;
           }
         } else {
           if (v == row[opt]) {
-            cl_failed = false;
+            cl_unsat = false;
             break;
           }
         }
       }
-      if (cl_failed) {
-        pass = false;
+      if (cl_unsat) {
+        sat = false;
         break;
       }
     }
-    for (size_t i = 0; i < changedVars.size(); ++i) {
-      unsigned opt = options.option(changedVars[i]);
-      std::swap(row[opt], changedVars[i]);
-    }
-    return pass;
+    return sat;
   }
 
+  // TODO: same variables in one clause, such as "a != 0 || a != 1"
   void addClause(Clause &&c) {
-    compact_clause(c);
+    std::sort(c.begin(), c.end());
     if (c.empty()) {
       return;
     }
@@ -119,7 +135,7 @@ public:
   void addClause(const Clause &c) {
     formula.push_back(c);
     Formula_size_type index = formula.size() - 1;
-    compact_clause(formula[index]);
+    std::sort(formula[index].begin(), formula[index].end());
     if (formula[index].empty()) {
       formula.pop_back();
       return;
@@ -130,210 +146,6 @@ public:
     }
   }
 
-  void compact_clause(Clause &c) {
-    const Options &options = specificationFile.getOptions();
-    std::sort(c.begin(), c.end());
-    std::vector<Literal>::size_type i = 0, j = 1;
-    while (j < c.size()) {
-      auto i_var = c[i].variable(), j_var = c[j].variable();
-      auto i_option = options.option(i_var), j_option = options.option(j_var);
-      if (i_option != j_option) {
-        c[++i] = c[j++];
-        continue;
-      }
-      if (c[i].is_negative() && c[j].is_negative()) {
-        if (i_var == j_var) {
-          ++j;
-        } else {
-          c.clear();
-          return;
-        }
-      } else if (!c[i].is_negative() && !c[j].is_negative()) {
-        if (i_var == j_var) {
-          ++j;
-        } else {
-          c[++i] = c[j++];
-        }
-      } else if (!c[i].is_negative() && c[j].is_negative()) {
-        if (i_var == j_var) {
-          c.clear();
-          return;
-        } else {
-          if (i == 0) {
-            c[i] = c[j++];
-          } else {
-            --i;
-          }
-        }
-      } else {
-        if (i_var == j_var) {
-          c.clear();
-          return;
-        } else {
-          ++j;
-        }
-      }
-    }
-    c.resize(i + 1);
-  }
-
-  void initialize(const std::vector<std::vector<unsigned int>> &array) {
-    rows_sat_count.resize(array.size());
-    for (std::vector<std::vector<unsigned int>>::size_type row_index = 0;
-         row_index < array.size(); ++row_index) {
-      change_row(row_index, array[row_index]);
-    }
-#ifndef NVISIBLE
-    print(array);
-#endif
-  }
-
-  void change_row(size_t row_index, const std::vector<unsigned int> &row) {
-    const Options &options = specificationFile.getOptions();
-    auto &clauses_sat_count = rows_sat_count[row_index];
-    clauses_sat_count.clear();
-    clauses_sat_count.resize(formula.size(), 0);
-    for (size_t option = 0; option < options.size(); ++option) {
-      auto var = row[option];
-      for (auto clause_index : option_clasue[option]) {
-        for (auto &l : formula[clause_index]) {
-          auto v = l.variable();
-          auto opt = options.option(v);
-          if (opt != option) {
-            continue;
-          }
-          if (l.is_negative()) {
-            if (v != var)
-              clauses_sat_count[clause_index]++;
-          } else if (v == var) {
-            clauses_sat_count[clause_index]++;
-          }
-        }
-      }
-    }
-  }
-
-  bool valida_change(size_t row_index, unsigned int option,
-                     unsigned int org_var, unsigned int new_var) {
-
-    const Options &options = specificationFile.getOptions();
-    Clauses_sat_count &clauses_sat_count = rows_sat_count[row_index];
-    for (auto clause_index : option_clasue[option]) {
-      if (clauses_sat_count[clause_index] > 1) {
-        continue;
-      }
-      const Clause &c = formula[clause_index];
-      for (size_t i = 0; i < c.size(); ++i) {
-        auto &l = c[i];
-        auto lvar = l.variable();
-        if (options.option(lvar) != option) {
-          continue;
-        }
-        if (l.is_negative()) {
-          if (lvar != org_var && lvar == new_var) {
-            return false;
-          }
-        } else {
-          if (lvar == org_var && lvar != new_var) {
-            for (++i; i < c.size(); ++i) {
-              if (options.option(c[i].variable()) != option) {
-                return false;
-              }
-              if (c[i].variable() == new_var) {
-                break;
-              }
-            }
-            if (i >= c.size()) {
-              return false;
-            }
-          }
-        }
-      }
-    }
-    return true;
-  }
-
-  void change_var(size_t row_index, unsigned int option, unsigned int org_var,
-                  unsigned int new_var) {
-
-    const Options &options = specificationFile.getOptions();
-    Clauses_sat_count &clauses_sat_count = rows_sat_count[row_index];
-    for (auto clause_index : option_clasue[option]) {
-      const Clause &c = formula[clause_index];
-      // TODO: if there is not duplicate literal, break when the var is meet
-      for (auto &l : c) {
-        auto lvar = l.variable();
-        if (options.option(lvar) != option) {
-          continue;
-        }
-        if (l.is_negative()) {
-          if (lvar == org_var && lvar != new_var) {
-            clauses_sat_count[clause_index]++;
-          } else if (lvar != org_var && lvar == new_var) {
-            clauses_sat_count[clause_index]--;
-          }
-        } else {
-          if (lvar == org_var && lvar != new_var) {
-            clauses_sat_count[clause_index]--;
-          } else if (lvar != org_var && lvar == new_var) {
-            clauses_sat_count[clause_index]++;
-          }
-        }
-      }
-    }
-  }
-
-  // Request: org_vars and new_vars are sorted
-  void change_mutivar(size_t row_index, std::vector<unsigned int> org_vars,
-                      std::vector<unsigned int> new_vars) {
-
-    const Options &options = specificationFile.getOptions();
-    for (std::vector<unsigned int>::size_type i = 0; i < org_vars.size(); ++i) {
-      auto option = options.option(org_vars[i]);
-      auto org_var = org_vars[i];
-      auto new_var = new_vars[i];
-      change_var(row_index, option, org_var, new_var);
-    }
-  }
-
-  // Request: org_vars and new_vars are sorted
-  // bool valida_multivar_change(size_t row_index,
-  //                             std::vector<unsigned int> org_vars,
-  //                             std::vector<unsigned int> new_vars) {
-  //
-  //   const Options &options = specificationFile.getOptions();
-  //   std::vector<unsigned int>::size_type i = 0;
-  //   for (; i < org_vars.size(); ++i) {
-  //     auto option = options.option(org_vars[i]);
-  //     auto org_var = org_vars[i];
-  //     auto new_var = new_vars[i];
-  //     if (valida_change(row_index, option, org_var, new_var)) {
-  //       change_var(row_index, option, org_var, new_var);
-  //     }
-  //     // undo it
-  //     else {
-  //       while (i > 0) {
-  //         --i;
-  //         change_var(row_index, options.option(org_vars[i]), new_vars[i],
-  //                    org_vars[i]);
-  //       }
-  //       return false;
-  //     }
-  //   }
-  //   while (i > 0) {
-  //     --i;
-  //     change_var(row_index, options.option(org_vars[i]), new_vars[i],
-  //                org_vars[i]);
-  //   }
-  //   return true;
-  // }
-
-  void pop_back_row() { rows_sat_count.pop_back(); }
-  void
-  exchange_row(std::vector<std::vector<unsigned int>>::size_type row_index1,
-               std::vector<std::vector<unsigned int>>::size_type row_index2) {
-    rows_sat_count[row_index1].swap(rows_sat_count[row_index2]);
-  }
 #ifndef NVISIBLE
   void print(const std::vector<std::vector<unsigned>> &array) const {
     std::cout << "***********valid_print()**************" << std::endl;
