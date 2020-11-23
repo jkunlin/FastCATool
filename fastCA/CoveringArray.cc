@@ -452,7 +452,21 @@ void CoveringArray::printBestArray() const {
 
   std::cout << "Configurations:" << std::endl;
   for (unsigned i = 0; i < bestArray.size(); ++i) {
-    std::cout << i + 1 << "th  ";
+    std::cout << i + 1;
+    switch (i + 1 % 10) {
+    case 1:
+      std::cout << "st ";
+      break;
+    case 2:
+      std::cout << "nd ";
+      break;
+    case 3:
+      std::cout << "rd ";
+      break;
+    default:
+      std::cout << "th ";
+      break;
+    }
     for (int j = 0; j < bestArray[i].size(); j++) {
       std::cout << ' '
                 << io.getValue(j, bestArray[i][j] - options.firstSymbol(j));
@@ -487,7 +501,21 @@ void CoveringArray::outputBestArrayToFile() const {
 
   ofs << "Configurations:" << std::endl;
   for (unsigned i = 0; i < bestArray.size(); ++i) {
-    ofs << i + 1 << "th  ";
+    ofs << i + 1;
+    switch (i + 1 % 10) {
+    case 1:
+      ofs << "st ";
+      break;
+    case 2:
+      ofs << "nd ";
+      break;
+    case 3:
+      ofs << "rd ";
+      break;
+    default:
+      ofs << "th ";
+      break;
+    }
     for (int j = 0; j < bestArray[i].size(); j++) {
       ofs << ' ' << io.getValue(j, bestArray[i][j] - options.firstSymbol(j));
     }
